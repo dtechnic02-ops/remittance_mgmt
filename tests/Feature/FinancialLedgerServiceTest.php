@@ -92,7 +92,39 @@ class FinancialLedgerServiceTest extends TestCase
         $this->assertSame(600, $account->fresh()->current_balance);
     }
 
-    public function test_it_blocks_negative_balance_when_account_does_not_allow_it(): void
+    public function test_it_allows_decrease_to_exactly_zero(): void
+    {
+        $user = User::factory()->create();
+
+        $account = Account::create([
+            'name' => 'Exact Zero Cash',
+            'code' => 'EZ01',
+            'type' => Account::TYPE_CASH,
+            'opening_balance' => 500,
+            'current_balance' => 500,
+            'is_active' => true,
+            'created_by' => $user->id,
+            'updated_by' => $user->id,
+        ]);
+
+        app(FinancialLedgerService::class)->post([
+            'account_id' => $account->id,
+            'transaction_type' => 'test',
+            'transaction_id' => 3,
+            'transaction_number' => 'TEST-000003',
+            'date_ad' => '2026-08-08',
+            'date_bs' => '2083-04-23',
+            'financial_year' => '2083/84',
+            'direction' => 'decrease',
+            'amount' => 500,
+            'component' => 'principal',
+            'created_by' => $user->id,
+        ]);
+
+        $this->assertSame(0, $account->fresh()->current_balance);
+    }
+
+    public function test_it_blocks_decrease_below_zero(): void
     {
         $user = User::factory()->create();
 
@@ -128,7 +160,7 @@ class FinancialLedgerServiceTest extends TestCase
             $this->fail('Expected negative balance protection exception.');
         } catch (RuntimeException $exception) {
             $this->assertSame(
-                'This account does not allow a negative balance.',
+                'Account balance cannot become negative.',
                 $exception->getMessage()
             );
         }
@@ -140,7 +172,7 @@ class FinancialLedgerServiceTest extends TestCase
         ]);
     }
 
-    public function test_it_allows_negative_balance_when_account_is_configured_for_it(): void
+    public function test_allow_negative_no_longer_permits_negative_balance(): void
     {
         $user = User::factory()->create();
 
@@ -158,7 +190,10 @@ class FinancialLedgerServiceTest extends TestCase
 
         $service = app(FinancialLedgerService::class);
 
-        $entry = $service->post([
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Account balance cannot become negative.');
+
+        $service->post([
             'account_id' => $account->id,
             'transaction_type' => 'remittance',
             'transaction_id' => 4,
@@ -171,8 +206,64 @@ class FinancialLedgerServiceTest extends TestCase
             'component' => 'principal',
             'created_by' => $user->id,
         ]);
+    }
 
-        $this->assertSame(-8000, $account->fresh()->current_balance);
-        $this->assertSame(-8000, $entry->balance_after);
+    public function test_reversal_that_would_create_negative_balance_is_blocked(): void
+    {
+        $user = User::factory()->create();
+        $account = Account::create([
+            'name' => 'Reversal Cash',
+            'code' => 'RC01',
+            'type' => Account::TYPE_CASH,
+            'opening_balance' => 100,
+            'current_balance' => 100,
+            'is_active' => true,
+            'created_by' => $user->id,
+            'updated_by' => $user->id,
+        ]);
+        $service = app(FinancialLedgerService::class);
+
+        $original = $service->post([
+            'account_id' => $account->id,
+            'transaction_type' => 'income',
+            'transaction_id' => 5,
+            'transaction_number' => 'INC-000005',
+            'date_ad' => '2026-08-08',
+            'date_bs' => '2083-04-23',
+            'financial_year' => '2083/84',
+            'direction' => 'increase',
+            'amount' => 50,
+            'component' => 'income',
+            'created_by' => $user->id,
+        ]);
+
+        $service->post([
+            'account_id' => $account->id,
+            'transaction_type' => 'expense',
+            'transaction_id' => 6,
+            'transaction_number' => 'EXP-000006',
+            'date_ad' => '2026-08-08',
+            'date_bs' => '2083-04-23',
+            'financial_year' => '2083/84',
+            'direction' => 'decrease',
+            'amount' => 120,
+            'component' => 'expense',
+            'created_by' => $user->id,
+        ]);
+
+        try {
+            $service->reverse($original, $user->id, 'Test reversal');
+            $this->fail('Expected reversal to be blocked.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame(
+                'Account balance cannot become negative.',
+                $exception->getMessage()
+            );
+        }
+
+        $this->assertSame(30, $account->fresh()->current_balance);
+        $this->assertDatabaseMissing('ledger_entries', [
+            'reversal_of_id' => $original->id,
+        ]);
     }
 }

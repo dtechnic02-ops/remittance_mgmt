@@ -72,14 +72,6 @@
                         </div>
 
                         <div>
-                            <p class="text-sm text-gray-500">Negative Balance Allowed</p>
-
-                            <p class="font-semibold">
-                                {{ $account->allow_negative ? 'Yes' : 'No' }}
-                            </p>
-                        </div>
-
-                        <div>
                             <p class="text-sm text-gray-500">Status</p>
 
                             @if ($account->is_active)

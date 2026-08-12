@@ -47,7 +47,7 @@ class OpeningBalanceController extends Controller
                     ->where(fn ($query) => $query->where('is_active', true)),
             ],
             'date_ad' => ['required', 'date'],
-            'amount' => ['required', 'integer'],
+            'amount' => ['required', 'integer', 'min:0'],
             'note' => ['nullable', 'string'],
             'attachment' => [
                 'nullable',
@@ -109,7 +109,7 @@ class OpeningBalanceController extends Controller
     ) {
         $validated = $request->validate([
             'date_ad' => ['required', 'date'],
-            'amount' => ['required', 'integer'],
+            'amount' => ['required', 'integer', 'min:0'],
             'note' => ['nullable', 'string'],
             'attachment' => [
                 'nullable',

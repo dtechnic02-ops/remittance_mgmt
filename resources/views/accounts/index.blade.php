@@ -38,7 +38,6 @@
                                     <th class="px-4 py-3">Account Name</th>
                                     <th class="px-4 py-3">Type</th>
                                     <th class="px-4 py-3 text-right">Balance</th>
-                                    <th class="px-4 py-3">Negative</th>
                                     <th class="px-4 py-3">Status</th>
                                     <th class="px-4 py-3 text-right">Action</th>
                                 </tr>
@@ -62,10 +61,6 @@
                                         <td class="px-4 py-3 text-right font-semibold
                                             {{ $account->current_balance < 0 ? 'text-red-600' : '' }}">
                                             {{ number_format($account->current_balance) }}
-                                        </td>
-
-                                        <td class="px-4 py-3">
-                                            {{ $account->allow_negative ? 'Yes' : 'No' }}
                                         </td>
 
                                         <td class="px-4 py-3">
@@ -104,7 +99,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="7"
+                                        <td colspan="6"
                                             class="px-4 py-8 text-center text-gray-500">
                                             No accounts found.
                                         </td>

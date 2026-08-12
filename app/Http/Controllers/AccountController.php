@@ -33,7 +33,6 @@ class AccountController extends Controller
             'type' => ['required', Rule::in(array_keys(Account::types()))],
             'account_number' => ['nullable', 'string', 'max:100'],
             'branch_name' => ['nullable', 'string', 'max:150'],
-            'allow_negative' => ['nullable', 'boolean'],
             'is_active' => ['nullable', 'boolean'],
             'note' => ['nullable', 'string'],
             'attachment' => [
@@ -49,7 +48,6 @@ class AccountController extends Controller
                 ->store('accounts', 'public');
         }
 
-        $validated['allow_negative'] = $request->boolean('allow_negative');
         $validated['is_active'] = $request->boolean('is_active');
         $validated['created_by'] = auth()->id();
         $validated['updated_by'] = auth()->id();
@@ -87,7 +85,6 @@ class AccountController extends Controller
             'type' => ['required', Rule::in(array_keys(Account::types()))],
             'account_number' => ['nullable', 'string', 'max:100'],
             'branch_name' => ['nullable', 'string', 'max:150'],
-            'allow_negative' => ['nullable', 'boolean'],
             'is_active' => ['nullable', 'boolean'],
             'note' => ['nullable', 'string'],
             'attachment' => [
@@ -107,7 +104,6 @@ class AccountController extends Controller
                 ->store('accounts', 'public');
         }
 
-        $validated['allow_negative'] = $request->boolean('allow_negative');
         $validated['is_active'] = $request->boolean('is_active');
         $validated['updated_by'] = auth()->id();
 

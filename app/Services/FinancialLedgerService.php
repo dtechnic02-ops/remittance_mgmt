@@ -43,12 +43,9 @@ class FinancialLedgerService
                 $newBalance -= $amount;
             }
 
-            if (
-                $newBalance < 0
-                && ! $account->allow_negative
-            ) {
+            if ($newBalance < 0) {
                 throw new RuntimeException(
-                    'This account does not allow a negative balance.'
+                    'Account balance cannot become negative.'
                 );
             }
 

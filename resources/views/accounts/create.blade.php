@@ -175,18 +175,6 @@
 
                         <label class="inline-flex items-center">
                             <input type="checkbox"
-                                   name="allow_negative"
-                                   value="1"
-                                   @checked(old('allow_negative', true))
-                                   class="rounded border-gray-300">
-
-                            <span class="ml-2 text-sm text-gray-700">
-                                Allow Negative Balance
-                            </span>
-                        </label>
-
-                        <label class="inline-flex items-center">
-                            <input type="checkbox"
                                    name="is_active"
                                    value="1"
                                    @checked(old('is_active', true))

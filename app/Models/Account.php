@@ -29,7 +29,6 @@ public const TYPE_OTHER = 'other';
         'current_balance',
         'opening_date',
         'opening_date_bs',
-        'allow_negative',
         'is_active',
         'note',
         'attachment',
@@ -43,7 +42,6 @@ public const TYPE_OTHER = 'other';
             'opening_balance' => 'integer',
             'current_balance' => 'integer',
             'opening_date' => 'date',
-            'allow_negative' => 'boolean',
             'is_active' => 'boolean',
         ];
     }
