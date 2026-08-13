@@ -188,7 +188,7 @@
                                 </label>
 
                                 @if ($customer->photo)
-                                    <img src="{{ asset('storage/'.$customer->photo) }}"
+                                    <img src="{{ route('customers.documents.type', [$customer, 'photo']) }}"
                                          alt=""
                                          class="mt-2 w-32 h-32 object-cover rounded-md border">
                                 @endif
@@ -215,9 +215,9 @@
                                 </label>
 
                                 @if ($customer->citizenship_front)
-                                    <a href="{{ asset('storage/'.$customer->citizenship_front) }}"
+                                    <a href="{{ route('customers.documents.type', [$customer, 'citizenship-front']) }}"
                                        target="_blank">
-                                        <img src="{{ asset('storage/'.$customer->citizenship_front) }}"
+                                        <img src="{{ route('customers.documents.type', [$customer, 'citizenship-front']) }}"
                                              alt=""
                                              class="mt-2 w-full max-h-40 object-contain rounded-md border">
                                     </a>
@@ -241,9 +241,9 @@
                                 </label>
 
                                 @if ($customer->citizenship_back)
-                                    <a href="{{ asset('storage/'.$customer->citizenship_back) }}"
+                                    <a href="{{ route('customers.documents.type', [$customer, 'citizenship-back']) }}"
                                        target="_blank">
-                                        <img src="{{ asset('storage/'.$customer->citizenship_back) }}"
+                                        <img src="{{ route('customers.documents.type', [$customer, 'citizenship-back']) }}"
                                              alt=""
                                              class="mt-2 w-full max-h-40 object-contain rounded-md border">
                                     </a>
@@ -292,10 +292,10 @@
                                 @foreach ($customer->otherDocuments as $document)
                                     <div class="border rounded-md p-2">
 
-                                        <a href="{{ asset('storage/'.$document->file_path) }}"
+                                        <a href="{{ route('customers.documents.show', [$customer, $document->id]) }}"
                                            target="_blank">
 
-                                            <img src="{{ asset('storage/'.$document->file_path) }}"
+                                            <img src="{{ route('customers.documents.show', [$customer, $document->id]) }}"
                                                  alt=""
                                                  class="w-full h-28 object-cover rounded">
 

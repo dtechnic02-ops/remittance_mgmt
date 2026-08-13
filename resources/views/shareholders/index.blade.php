@@ -117,7 +117,7 @@
                                         @if ($shareholder->photo)
 
                                             <img
-                                                src="{{ Storage::disk('public')->url($shareholder->photo) }}"
+                                                src="{{ route('shareholders.documents.show', [$shareholder, 'photo']) }}"
                                                 alt="{{ $shareholder->name }}"
                                                 class="h-12 w-12 rounded-full object-cover border"
                                             >

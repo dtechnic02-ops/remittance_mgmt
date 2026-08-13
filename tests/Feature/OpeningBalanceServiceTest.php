@@ -184,11 +184,11 @@ class OpeningBalanceServiceTest extends TestCase
 
     public function test_failed_http_edit_keeps_old_attachment_and_returns_error(): void
     {
-        Storage::fake('public');
+        Storage::fake('local');
         [$user, $account, $openingBalance] =
             $this->existing('OB10', 10000, 3000);
         $user->update(['role' => 'admin', 'is_active' => true]);
-        Storage::disk('public')->put('opening-balances/original.pdf', 'original');
+        Storage::disk('local')->put('opening-balances/original.pdf', 'original');
         $openingBalance->update([
             'attachment' => 'opening-balances/original.pdf',
         ]);
@@ -208,10 +208,10 @@ class OpeningBalanceServiceTest extends TestCase
 
         $response->assertRedirect();
         $response->assertSessionHasErrors('opening_balance');
-        Storage::disk('public')->assertExists('opening-balances/original.pdf');
+        Storage::disk('local')->assertExists('opening-balances/original.pdf');
         $this->assertSame(
             ['opening-balances/original.pdf'],
-            Storage::disk('public')->allFiles('opening-balances')
+            Storage::disk('local')->allFiles('opening-balances')
         );
         $this->assertSame(10000, $openingBalance->fresh()->amount);
         $this->assertSame(3000, $account->fresh()->current_balance);

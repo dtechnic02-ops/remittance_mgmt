@@ -119,7 +119,7 @@
 
                             @if ($openingBalance->attachment)
                                 <div class="mt-2">
-                                    <a href="{{ asset('storage/'.$openingBalance->attachment) }}"
+                                    <a href="{{ route('opening-balances.attachment', $openingBalance) }}"
                                        target="_blank"
                                        class="text-sm text-blue-600 underline">
                                         View Current Attachment

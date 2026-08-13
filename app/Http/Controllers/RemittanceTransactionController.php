@@ -172,7 +172,7 @@ class RemittanceTransactionController extends Controller
         if ($request->hasFile('attachment')) {
             $attachment = $request
                 ->file('attachment')
-                ->store('remittances/attachments', 'public');
+                ->store('remittances/attachments', 'local');
 
             $validated['attachment'] = $attachment;
         }
@@ -181,7 +181,7 @@ class RemittanceTransactionController extends Controller
             $transaction = $this->service->create($validated);
         } catch (\RuntimeException $exception) {
             if ($attachment) {
-                Storage::disk('public')->delete($attachment);
+                Storage::disk('local')->delete($attachment);
             }
 
             return back()
@@ -189,7 +189,7 @@ class RemittanceTransactionController extends Controller
                 ->withErrors(['transaction' => $exception->getMessage()]);
         } catch (\Throwable $exception) {
             if ($attachment) {
-                Storage::disk('public')->delete($attachment);
+                Storage::disk('local')->delete($attachment);
             }
 
             throw $exception;

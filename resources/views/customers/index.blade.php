@@ -111,7 +111,7 @@
 
                                             @if ($customer->photo)
 
-                                                <img src="{{ asset('storage/'.$customer->photo) }}"
+                                                <img src="{{ route('customers.documents.type', [$customer, 'photo']) }}"
                                                      alt=""
                                                      class="w-10 h-10 rounded-full object-cover">
 

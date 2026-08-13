@@ -19,6 +19,7 @@ use App\Http\Controllers\ShareTransactionController;
 use App\Http\Controllers\LenderController;
 use App\Http\Controllers\BorrowingController;
 use App\Http\Controllers\ShareholderPortalController;
+use App\Http\Controllers\PrivateFileController;
 Route::get('/', function () {
     return redirect()->route('login');
 });
@@ -48,8 +49,12 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
     })->name('admin.dashboard');
 
     Route::resource('accounts', AccountController::class);
+    Route::get('/accounts/{account}/attachment', [PrivateFileController::class, 'account'])
+        ->name('accounts.attachment');
 Route::resource('opening-balances', OpeningBalanceController::class)
     ->only(['index', 'create', 'store', 'edit', 'update']);
+    Route::get('/opening-balances/{openingBalance}/attachment', [PrivateFileController::class, 'openingBalance'])
+        ->name('opening-balances.attachment');
     Route::get(
     '/staff-permissions',
     [StaffPermissionController::class, 'index']
@@ -87,6 +92,8 @@ Route::middleware(['auth', 'verified', 'shareholder'])->group(function () {
         '/shareholder/dashboard',
         [ShareholderPortalController::class, 'dashboard']
     )->name('shareholder.dashboard');
+    Route::get('/shareholder/documents/{shareholder}/{type}', [PrivateFileController::class, 'shareholder'])
+        ->name('shareholder.documents.show');
 });
 
 
@@ -97,6 +104,23 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
+
+    Route::get('/customers/{customer}/documents/type/{type}', [PrivateFileController::class, 'customer'])
+        ->middleware('permission:customer.view')->name('customers.documents.type');
+    Route::get('/customers/{customer}/documents/file/{document}', [PrivateFileController::class, 'customerDocument'])
+        ->middleware('permission:customer.view')->name('customers.documents.show');
+    Route::get('/shareholders/{shareholder}/documents/{type}', [PrivateFileController::class, 'shareholder'])
+        ->middleware('permission:shareholder.view')->name('shareholders.documents.show');
+    Route::get('/remittances/{remittance}/attachment', [PrivateFileController::class, 'remittance'])
+        ->middleware('permission:remittance.view')->name('remittances.attachment');
+    Route::get('/expenses/{expense}/attachment', [PrivateFileController::class, 'expense'])
+        ->middleware('permission:expense.view')->name('expenses.attachment');
+    Route::get('/incomes/{income}/attachment', [PrivateFileController::class, 'income'])
+        ->middleware('permission:income.view')->name('incomes.attachment');
+    Route::get('/share-transactions/{shareTransaction}/attachment', [PrivateFileController::class, 'shareTransaction'])
+        ->middleware('permission:share-transaction.view')->name('share-transactions.attachment');
+    Route::get('/borrowings/{borrowing}/attachment', [PrivateFileController::class, 'borrowing'])
+        ->middleware('permission:borrowing.view')->name('borrowings.attachment');
 
     Route::resource('customers', CustomerController::class)
         ->only([

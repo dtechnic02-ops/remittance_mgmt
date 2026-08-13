@@ -207,7 +207,7 @@
 
                                 @if ($shareholder->photo)
                                     <div class="mt-2 mb-3">
-                                        <img src="{{ Storage::disk('public')->url($shareholder->photo) }}"
+                                        <img src="{{ route('shareholders.documents.show', [$shareholder, 'photo']) }}"
                                              alt="{{ $shareholder->name }}"
                                              class="h-24 w-24 rounded-lg object-cover border">
                                     </div>
@@ -230,7 +230,7 @@
 
                                 @if ($shareholder->citizenship_front)
                                     <div class="mt-2 mb-3">
-                                        <a href="{{ Storage::disk('public')->url($shareholder->citizenship_front) }}"
+                                        <a href="{{ route('shareholders.documents.show', [$shareholder, 'citizenship-front']) }}"
                                            target="_blank"
                                            class="text-blue-600 hover:underline">
                                             View Existing Document
@@ -251,7 +251,7 @@
 
                                 @if ($shareholder->citizenship_back)
                                     <div class="mt-2 mb-3">
-                                        <a href="{{ Storage::disk('public')->url($shareholder->citizenship_back) }}"
+                                        <a href="{{ route('shareholders.documents.show', [$shareholder, 'citizenship-back']) }}"
                                            target="_blank"
                                            class="text-blue-600 hover:underline">
                                             View Existing Document
@@ -272,7 +272,7 @@
 
                                 @if ($shareholder->other_document)
                                     <div class="mt-2 mb-3">
-                                        <a href="{{ Storage::disk('public')->url($shareholder->other_document) }}"
+                                        <a href="{{ route('shareholders.documents.show', [$shareholder, 'other-document']) }}"
                                            target="_blank"
                                            class="text-blue-600 hover:underline">
                                             View Existing Document

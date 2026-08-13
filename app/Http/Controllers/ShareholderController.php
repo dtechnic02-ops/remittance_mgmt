@@ -149,7 +149,7 @@ $validated['total_investment'] = 0;
             if ($request->hasFile('photo')) {
                 $path = $request
                     ->file('photo')
-                    ->store('shareholders/photos', 'public');
+                    ->store('shareholders/photos', 'local');
 
                 $validated['photo'] = $path;
                 $uploadedFiles[] = $path;
@@ -158,7 +158,7 @@ $validated['total_investment'] = 0;
             if ($request->hasFile('citizenship_front')) {
                 $path = $request
                     ->file('citizenship_front')
-                    ->store('shareholders/citizenship', 'public');
+                    ->store('shareholders/citizenship', 'local');
 
                 $validated['citizenship_front'] = $path;
                 $uploadedFiles[] = $path;
@@ -167,7 +167,7 @@ $validated['total_investment'] = 0;
             if ($request->hasFile('citizenship_back')) {
                 $path = $request
                     ->file('citizenship_back')
-                    ->store('shareholders/citizenship', 'public');
+                    ->store('shareholders/citizenship', 'local');
 
                 $validated['citizenship_back'] = $path;
                 $uploadedFiles[] = $path;
@@ -176,7 +176,7 @@ $validated['total_investment'] = 0;
             if ($request->hasFile('other_document')) {
                 $path = $request
                     ->file('other_document')
-                    ->store('shareholders/documents', 'public');
+                    ->store('shareholders/documents', 'local');
 
                 $validated['other_document'] = $path;
                 $uploadedFiles[] = $path;
@@ -185,7 +185,7 @@ $validated['total_investment'] = 0;
             $shareholder = Shareholder::create($validated);
         } catch (\Throwable $exception) {
             foreach ($uploadedFiles as $file) {
-                Storage::disk('public')->delete($file);
+                Storage::disk('local')->delete($file);
             }
 
             throw $exception;
@@ -332,51 +332,49 @@ $validated['total_investment'] = 0;
 
         $validated['updated_by'] = auth()->id();
 
-        if ($request->hasFile('photo')) {
-            if ($shareholder->photo) {
-                Storage::disk('public')
-                    ->delete($shareholder->photo);
-            }
+        $newFiles = [];
+        $oldFiles = [];
 
+        if ($request->hasFile('photo')) {
             $validated['photo'] = $request
                 ->file('photo')
-                ->store('shareholders/photos', 'public');
+                ->store('shareholders/photos', 'local');
+            $newFiles[] = $validated['photo'];
+            $oldFiles[] = $shareholder->photo;
         }
 
         if ($request->hasFile('citizenship_front')) {
-            if ($shareholder->citizenship_front) {
-                Storage::disk('public')
-                    ->delete($shareholder->citizenship_front);
-            }
-
             $validated['citizenship_front'] = $request
                 ->file('citizenship_front')
-                ->store('shareholders/citizenship', 'public');
+                ->store('shareholders/citizenship', 'local');
+            $newFiles[] = $validated['citizenship_front'];
+            $oldFiles[] = $shareholder->citizenship_front;
         }
 
         if ($request->hasFile('citizenship_back')) {
-            if ($shareholder->citizenship_back) {
-                Storage::disk('public')
-                    ->delete($shareholder->citizenship_back);
-            }
-
             $validated['citizenship_back'] = $request
                 ->file('citizenship_back')
-                ->store('shareholders/citizenship', 'public');
+                ->store('shareholders/citizenship', 'local');
+            $newFiles[] = $validated['citizenship_back'];
+            $oldFiles[] = $shareholder->citizenship_back;
         }
 
         if ($request->hasFile('other_document')) {
-            if ($shareholder->other_document) {
-                Storage::disk('public')
-                    ->delete($shareholder->other_document);
-            }
-
             $validated['other_document'] = $request
                 ->file('other_document')
-                ->store('shareholders/documents', 'public');
+                ->store('shareholders/documents', 'local');
+            $newFiles[] = $validated['other_document'];
+            $oldFiles[] = $shareholder->other_document;
         }
 
-        $shareholder->update($validated);
+        try {
+            $shareholder->update($validated);
+        } catch (\Throwable $exception) {
+            Storage::disk('local')->delete($newFiles);
+            throw $exception;
+        }
+
+        Storage::disk('local')->delete(array_filter($oldFiles));
 
         return redirect()
             ->route('shareholders.show', $shareholder)

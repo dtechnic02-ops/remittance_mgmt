@@ -166,7 +166,7 @@ class BorrowingController extends Controller
         if ($request->hasFile('attachment')) {
             $attachment = $request
                 ->file('attachment')
-                ->store('borrowings/attachments', 'public');
+                ->store('borrowings/attachments', 'local');
 
             $validated['attachment'] = $attachment;
         }
@@ -175,7 +175,7 @@ class BorrowingController extends Controller
     $transaction = $this->service->create($validated);
 } catch (\RuntimeException $exception) {
     if ($attachment) {
-        Storage::disk('public')->delete($attachment);
+        Storage::disk('local')->delete($attachment);
     }
 
     return back()
@@ -185,7 +185,7 @@ class BorrowingController extends Controller
         ]);
 } catch (\Throwable $exception) {
     if ($attachment) {
-        Storage::disk('public')->delete($attachment);
+        Storage::disk('local')->delete($attachment);
     }
 
     throw $exception;

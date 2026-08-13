@@ -152,7 +152,7 @@
                             @if ($account->attachment)
                                 <p class="mt-2 text-sm text-gray-600">
                                     Current:
-                                    <a href="{{ asset('storage/'.$account->attachment) }}"
+                                    <a href="{{ route('accounts.attachment', $account) }}"
                                        target="_blank"
                                        class="text-blue-600 underline">
                                         View Attachment

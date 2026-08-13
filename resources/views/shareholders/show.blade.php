@@ -47,7 +47,7 @@
                             @if ($shareholder->photo)
 
                                 <img
-                                    src="{{ Storage::disk('public')->url($shareholder->photo) }}"
+                                    src="{{ route('shareholders.documents.show', [$shareholder, 'photo']) }}"
                                     alt="{{ $shareholder->name }}"
                                     class="w-32 h-32 rounded-lg object-cover border"
                                 >
@@ -248,7 +248,7 @@
 
                                 <div class="mt-4">
                                     <a
-                                        href="{{ Storage::disk('public')->url($shareholder->citizenship_front) }}"
+                                        href="{{ route('shareholders.documents.show', [$shareholder, 'citizenship-front']) }}"
                                         target="_blank"
                                         rel="noopener"
                                         class="text-blue-600 hover:underline">
@@ -277,7 +277,7 @@
 
                                 <div class="mt-4">
                                     <a
-                                        href="{{ Storage::disk('public')->url($shareholder->citizenship_back) }}"
+                                        href="{{ route('shareholders.documents.show', [$shareholder, 'citizenship-back']) }}"
                                         target="_blank"
                                         rel="noopener"
                                         class="text-blue-600 hover:underline">
@@ -306,7 +306,7 @@
 
                                 <div class="mt-4">
                                     <a
-                                        href="{{ Storage::disk('public')->url($shareholder->other_document) }}"
+                                        href="{{ route('shareholders.documents.show', [$shareholder, 'other-document']) }}"
                                         target="_blank"
                                         rel="noopener"
                                         class="text-blue-600 hover:underline">

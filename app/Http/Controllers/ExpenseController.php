@@ -154,7 +154,7 @@ class ExpenseController extends Controller
         if ($request->hasFile('attachment')) {
             $attachment = $request
                 ->file('attachment')
-                ->store('expenses/attachments', 'public');
+                ->store('expenses/attachments', 'local');
 
             $validated['attachment'] = $attachment;
         }
@@ -163,7 +163,7 @@ class ExpenseController extends Controller
             $expense = $this->service->create($validated);
         } catch (\RuntimeException $exception) {
             if ($attachment) {
-                Storage::disk('public')->delete($attachment);
+                Storage::disk('local')->delete($attachment);
             }
 
             return back()
@@ -171,7 +171,7 @@ class ExpenseController extends Controller
                 ->withErrors(['transaction' => $exception->getMessage()]);
         } catch (\Throwable $exception) {
             if ($attachment) {
-                Storage::disk('public')->delete($attachment);
+                Storage::disk('local')->delete($attachment);
             }
 
             throw $exception;

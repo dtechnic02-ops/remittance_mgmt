@@ -39,20 +39,28 @@ class AccountController extends Controller
                 'nullable',
                 'file',
                 'mimes:pdf,jpg,jpeg,png',
+                'max:5120',
             ],
         ]);
 
         if ($request->hasFile('attachment')) {
             $validated['attachment'] = $request
                 ->file('attachment')
-                ->store('accounts', 'public');
+                ->store('accounts', 'local');
         }
 
         $validated['is_active'] = $request->boolean('is_active');
         $validated['created_by'] = auth()->id();
         $validated['updated_by'] = auth()->id();
 
-        Account::create($validated);
+        try {
+            Account::create($validated);
+        } catch (\Throwable $exception) {
+            if (! empty($validated['attachment'])) {
+                Storage::disk('local')->delete($validated['attachment']);
+            }
+            throw $exception;
+        }
 
         return redirect()
             ->route('accounts.index')
@@ -91,23 +99,35 @@ class AccountController extends Controller
                 'nullable',
                 'file',
                 'mimes:pdf,jpg,jpeg,png',
+                'max:5120',
             ],
         ]);
 
+        $oldAttachment = null;
+        $newAttachment = null;
         if ($request->hasFile('attachment')) {
-            if ($account->attachment) {
-                Storage::disk('public')->delete($account->attachment);
-            }
-
+            $oldAttachment = $account->attachment;
             $validated['attachment'] = $request
                 ->file('attachment')
-                ->store('accounts', 'public');
+                ->store('accounts', 'local');
+            $newAttachment = $validated['attachment'];
         }
 
         $validated['is_active'] = $request->boolean('is_active');
         $validated['updated_by'] = auth()->id();
 
-        $account->update($validated);
+        try {
+            $account->update($validated);
+        } catch (\Throwable $exception) {
+            if ($newAttachment) {
+                Storage::disk('local')->delete($newAttachment);
+            }
+            throw $exception;
+        }
+
+        if ($oldAttachment) {
+            Storage::disk('local')->delete($oldAttachment);
+        }
 
         return redirect()
             ->route('accounts.index')
@@ -124,7 +144,7 @@ class AccountController extends Controller
         }
 
         if ($account->attachment) {
-            Storage::disk('public')->delete($account->attachment);
+            Storage::disk('local')->delete($account->attachment);
         }
 
         $account->delete();

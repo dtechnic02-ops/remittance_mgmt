@@ -391,7 +391,7 @@
 
                         @if ($shareTransaction->attachment)
 
-                            <a href="{{ Storage::disk('public')->url($shareTransaction->attachment) }}"
+                            <a href="{{ route('share-transactions.attachment', $shareTransaction) }}"
                                target="_blank"
                                rel="noopener"
                                class="text-blue-600 hover:underline">

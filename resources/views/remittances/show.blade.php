@@ -193,7 +193,7 @@
 
                         @if ($remittance->attachment)
 
-                            <a href="{{ asset('storage/'.$remittance->attachment) }}"
+                            <a href="{{ route('remittances.attachment', $remittance) }}"
                                target="_blank"
                                class="inline-block mt-3 text-blue-600 underline">
                                 View Attachment

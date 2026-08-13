@@ -273,7 +273,7 @@
 
                                         @if ($transaction->attachment)
 
-                                            <a href="{{ Storage::disk('public')->url($transaction->attachment) }}"
+                                            <a href="{{ route('borrowings.attachment', $transaction) }}"
                                                target="_blank"
                                                rel="noopener"
                                                class="text-blue-600 hover:underline">

@@ -54,6 +54,7 @@ class OpeningBalanceController extends Controller
                 'nullable',
                 'file',
                 'mimes:pdf,jpg,jpeg,png',
+                'max:5120',
             ],
         ]);
 
@@ -81,7 +82,7 @@ class OpeningBalanceController extends Controller
         if ($request->hasFile('attachment')) {
             $newAttachment = $request
                 ->file('attachment')
-                ->store('opening-balances', 'public');
+                ->store('opening-balances', 'local');
 
             $validated['attachment'] = $newAttachment;
         }
@@ -92,7 +93,7 @@ class OpeningBalanceController extends Controller
             $this->openingBalanceService->create($validated);
         } catch (RuntimeException $exception) {
             if ($newAttachment) {
-                Storage::disk('public')->delete($newAttachment);
+                Storage::disk('local')->delete($newAttachment);
             }
 
             return back()
@@ -100,7 +101,7 @@ class OpeningBalanceController extends Controller
                 ->withErrors(['opening_balance' => $exception->getMessage()]);
         } catch (\Throwable $exception) {
             if ($newAttachment) {
-                Storage::disk('public')->delete($newAttachment);
+                Storage::disk('local')->delete($newAttachment);
             }
 
             throw $exception;
@@ -136,6 +137,7 @@ class OpeningBalanceController extends Controller
                 'nullable',
                 'file',
                 'mimes:pdf,jpg,jpeg,png',
+                'max:5120',
             ],
         ]);
 
@@ -165,7 +167,7 @@ class OpeningBalanceController extends Controller
         if ($request->hasFile('attachment')) {
             $newAttachment = $request
                 ->file('attachment')
-                ->store('opening-balances', 'public');
+                ->store('opening-balances', 'local');
 
             $validated['attachment'] = $newAttachment;
         }
@@ -179,7 +181,7 @@ class OpeningBalanceController extends Controller
             );
         } catch (RuntimeException $exception) {
             if ($newAttachment) {
-                Storage::disk('public')->delete($newAttachment);
+                Storage::disk('local')->delete($newAttachment);
             }
 
             return back()
@@ -187,14 +189,14 @@ class OpeningBalanceController extends Controller
                 ->withErrors(['opening_balance' => $exception->getMessage()]);
         } catch (\Throwable $exception) {
             if ($newAttachment) {
-                Storage::disk('public')->delete($newAttachment);
+                Storage::disk('local')->delete($newAttachment);
             }
 
             throw $exception;
         }
 
         if ($newAttachment && $oldAttachment) {
-            Storage::disk('public')->delete($oldAttachment);
+            Storage::disk('local')->delete($oldAttachment);
         }
 
         return redirect()

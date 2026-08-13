@@ -185,7 +185,7 @@
                             </div>
 
                             <div class="mt-2">
-                                <a href="{{ Storage::disk('public')->url($income->attachment) }}"
+                                <a href="{{ route('incomes.attachment', $income) }}"
                                    target="_blank"
                                    rel="noopener"
                                    class="text-blue-600 hover:underline">

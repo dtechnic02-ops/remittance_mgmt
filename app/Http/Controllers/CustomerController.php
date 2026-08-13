@@ -47,7 +47,10 @@ class CustomerController extends Controller
 
         $validated = $this->validateCustomer($request);
 
-        $customer = DB::transaction(function () use ($request, $validated) {
+        $uploadedFiles = [];
+
+        try {
+            $customer = DB::transaction(function () use ($request, $validated, &$uploadedFiles) {
             $nextId = (int) Customer::query()
                 ->lockForUpdate()
                 ->max('id') + 1;
@@ -62,19 +65,22 @@ class CustomerController extends Controller
             if ($request->hasFile('photo')) {
                 $validated['photo'] = $request
                     ->file('photo')
-                    ->store('customers/photos', 'public');
+                    ->store('customers/photos', 'local');
+                $uploadedFiles[] = $validated['photo'];
             }
 
             if ($request->hasFile('citizenship_front')) {
                 $validated['citizenship_front'] = $request
                     ->file('citizenship_front')
-                    ->store('customers/citizenship', 'public');
+                    ->store('customers/citizenship', 'local');
+                $uploadedFiles[] = $validated['citizenship_front'];
             }
 
             if ($request->hasFile('citizenship_back')) {
                 $validated['citizenship_back'] = $request
                     ->file('citizenship_back')
-                    ->store('customers/citizenship', 'public');
+                    ->store('customers/citizenship', 'local');
+                $uploadedFiles[] = $validated['citizenship_back'];
             }
 
             $validated['is_active'] = true;
@@ -84,17 +90,23 @@ class CustomerController extends Controller
             $customer = Customer::create($validated);
 
             foreach ($request->file('other_documents', []) as $file) {
-                $customer->otherDocuments()->create([
-                    'file_path' => $file->store(
+                $path = $file->store(
                         'customers/other-documents',
-                        'public'
-                    ),
+                        'local'
+                    );
+                $uploadedFiles[] = $path;
+                $customer->otherDocuments()->create([
+                    'file_path' => $path,
                     'uploaded_by' => auth()->id(),
                 ]);
             }
 
             return $customer;
-        });
+            });
+        } catch (\Throwable $exception) {
+            Storage::disk('local')->delete($uploadedFiles);
+            throw $exception;
+        }
 
         return redirect()
             ->route('customers.show', $customer)
@@ -130,29 +142,33 @@ class CustomerController extends Controller
 
         $validated = $this->validateCustomer($request, $customer);
 
-        DB::transaction(function () use ($request, $customer, $validated) {
-            if ($request->hasFile('photo')) {
-                $this->deleteFile($customer->photo);
+        $uploadedFiles = [];
+        $oldFiles = [];
 
+        try {
+            DB::transaction(function () use ($request, $customer, $validated, &$uploadedFiles, &$oldFiles) {
+            if ($request->hasFile('photo')) {
                 $validated['photo'] = $request
                     ->file('photo')
-                    ->store('customers/photos', 'public');
+                    ->store('customers/photos', 'local');
+                $uploadedFiles[] = $validated['photo'];
+                $oldFiles[] = $customer->photo;
             }
 
             if ($request->hasFile('citizenship_front')) {
-                $this->deleteFile($customer->citizenship_front);
-
                 $validated['citizenship_front'] = $request
                     ->file('citizenship_front')
-                    ->store('customers/citizenship', 'public');
+                    ->store('customers/citizenship', 'local');
+                $uploadedFiles[] = $validated['citizenship_front'];
+                $oldFiles[] = $customer->citizenship_front;
             }
 
             if ($request->hasFile('citizenship_back')) {
-                $this->deleteFile($customer->citizenship_back);
-
                 $validated['citizenship_back'] = $request
                     ->file('citizenship_back')
-                    ->store('customers/citizenship', 'public');
+                    ->store('customers/citizenship', 'local');
+                $uploadedFiles[] = $validated['citizenship_back'];
+                $oldFiles[] = $customer->citizenship_back;
             }
 
             $validated['updated_by'] = auth()->id();
@@ -160,15 +176,23 @@ class CustomerController extends Controller
             $customer->update($validated);
 
             foreach ($request->file('other_documents', []) as $file) {
-                $customer->otherDocuments()->create([
-                    'file_path' => $file->store(
+                $path = $file->store(
                         'customers/other-documents',
-                        'public'
-                    ),
+                        'local'
+                    );
+                $uploadedFiles[] = $path;
+                $customer->otherDocuments()->create([
+                    'file_path' => $path,
                     'uploaded_by' => auth()->id(),
                 ]);
             }
-        });
+            });
+        } catch (\Throwable $exception) {
+            Storage::disk('local')->delete($uploadedFiles);
+            throw $exception;
+        }
+
+        Storage::disk('local')->delete(array_filter($oldFiles));
 
         return redirect()
             ->route('customers.show', $customer)
@@ -270,18 +294,21 @@ class CustomerController extends Controller
                 'nullable',
                 'image',
                 'mimes:jpg,jpeg,png',
+                'max:5120',
             ],
 
             'citizenship_front' => [
                 'nullable',
                 'image',
                 'mimes:jpg,jpeg,png',
+                'max:5120',
             ],
 
             'citizenship_back' => [
                 'nullable',
                 'image',
                 'mimes:jpg,jpeg,png',
+                'max:5120',
             ],
 
             'other_documents' => [
@@ -290,8 +317,9 @@ class CustomerController extends Controller
             ],
 
             'other_documents.*' => [
-                'image',
-                'mimes:jpg,jpeg,png',
+                'file',
+                'mimes:jpg,jpeg,png,pdf',
+                'max:5120',
             ],
         ]);
     }
@@ -299,7 +327,7 @@ class CustomerController extends Controller
     private function deleteFile(?string $path): void
     {
         if ($path) {
-            Storage::disk('public')->delete($path);
+            Storage::disk('local')->delete($path);
         }
     }
 

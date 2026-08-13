@@ -161,7 +161,7 @@ class ShareTransactionController extends Controller
         if ($request->hasFile('attachment')) {
             $attachment = $request
                 ->file('attachment')
-                ->store('share-transactions/attachments', 'public');
+                ->store('share-transactions/attachments', 'local');
 
             $validated['attachment'] = $attachment;
         }
@@ -170,7 +170,7 @@ class ShareTransactionController extends Controller
             $transaction = $this->service->create($validated);
         } catch (\RuntimeException $exception) {
             if ($attachment) {
-                Storage::disk('public')->delete($attachment);
+                Storage::disk('local')->delete($attachment);
             }
 
             return back()
@@ -178,7 +178,7 @@ class ShareTransactionController extends Controller
                 ->withErrors(['transaction' => $exception->getMessage()]);
         } catch (\Throwable $exception) {
             if ($attachment) {
-                Storage::disk('public')->delete($attachment);
+                Storage::disk('local')->delete($attachment);
             }
 
             throw $exception;

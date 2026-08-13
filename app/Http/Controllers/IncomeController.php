@@ -152,7 +152,7 @@ class IncomeController extends Controller
         if ($request->hasFile('attachment')) {
             $attachment = $request
                 ->file('attachment')
-                ->store('incomes/attachments', 'public');
+                ->store('incomes/attachments', 'local');
 
             $validated['attachment'] = $attachment;
         }
@@ -161,7 +161,7 @@ class IncomeController extends Controller
             $income = $this->service->create($validated);
         } catch (\RuntimeException $exception) {
             if ($attachment) {
-                Storage::disk('public')->delete($attachment);
+                Storage::disk('local')->delete($attachment);
             }
 
             return back()
@@ -169,7 +169,7 @@ class IncomeController extends Controller
                 ->withErrors(['transaction' => $exception->getMessage()]);
         } catch (\Throwable $exception) {
             if ($attachment) {
-                Storage::disk('public')->delete($attachment);
+                Storage::disk('local')->delete($attachment);
             }
 
             throw $exception;

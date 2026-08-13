@@ -171,7 +171,7 @@
 
                         @if ($expense->attachment)
 
-                            <a href="{{ asset('storage/'.$expense->attachment) }}"
+                            <a href="{{ route('expenses.attachment', $expense) }}"
                                target="_blank"
                                class="inline-block mt-3 text-blue-600 underline">
                                 View Attachment
