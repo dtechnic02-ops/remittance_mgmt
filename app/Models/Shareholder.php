@@ -11,6 +11,7 @@ class Shareholder extends Model
     use HasFactory;
 
     protected $fillable = [
+        'user_id',
         'code',
         'name',
         'mobile',
@@ -29,6 +30,11 @@ class Shareholder extends Model
         'created_by',
         'updated_by',
     ];
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
 
     protected function casts(): array
     {

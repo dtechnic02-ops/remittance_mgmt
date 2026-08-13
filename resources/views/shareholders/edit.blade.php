@@ -67,6 +67,27 @@
                                 @enderror
                             </div>
 
+                            @if (auth()->user()->isAdmin())
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">
+                                        Shareholder Login
+                                    </label>
+                                    <select name="user_id"
+                                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                        <option value="">Not linked yet</option>
+                                        @foreach ($shareholderUsers as $shareholderUser)
+                                            <option value="{{ $shareholderUser->id }}"
+                                                @selected((string) old('user_id', $shareholder->user_id) === (string) $shareholderUser->id)>
+                                                {{ $shareholderUser->name }} — {{ $shareholderUser->email }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    @error('user_id')
+                                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                    @enderror
+                                </div>
+                            @endif
+
                             <div>
                                 <label class="block text-sm font-medium text-gray-700">
                                     Name *

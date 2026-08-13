@@ -18,6 +18,7 @@ use App\Http\Controllers\ShareholderController;
 use App\Http\Controllers\ShareTransactionController;
 use App\Http\Controllers\LenderController;
 use App\Http\Controllers\BorrowingController;
+use App\Http\Controllers\ShareholderPortalController;
 Route::get('/', function () {
     return redirect()->route('login');
 });
@@ -82,9 +83,10 @@ Route::middleware(['auth', 'verified', 'staff'])->group(function () {
 
 
 Route::middleware(['auth', 'verified', 'shareholder'])->group(function () {
-    Route::get('/shareholder/dashboard', function () {
-        return view('shareholder.dashboard');
-    })->name('shareholder.dashboard');
+    Route::get(
+        '/shareholder/dashboard',
+        [ShareholderPortalController::class, 'dashboard']
+    )->name('shareholder.dashboard');
 });
 
 
@@ -105,72 +107,77 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'edit',
             'update',
             'destroy',
-        ]);
+        ])
+        ->middlewareFor(['index', 'show'], 'permission:customer.view')
+        ->middlewareFor(['create', 'store'], 'permission:customer.create')
+        ->middlewareFor(['edit', 'update'], 'permission:customer.update')
+        ->middlewareFor('destroy', 'permission:customer.delete');
 
     Route::delete(
         '/customers/{customer}/documents/{document}',
         [CustomerController::class, 'destroyOtherDocument']
-    )->name('customers.documents.destroy');
+    )->middleware('permission:customer.update')
+        ->name('customers.documents.destroy');
 Route::get(
     '/remittances/date-convert',
     [RemittanceTransactionController::class, 'convertDate']
-)->name('remittances.date-convert');
+)->middleware('permission:remittance.create')->name('remittances.date-convert');
     Route::get(
     '/remittances',
     [RemittanceTransactionController::class, 'index']
-)->name('remittances.index');
+)->middleware('permission:remittance.view')->name('remittances.index');
 
 Route::get(
     '/remittances/create',
     [RemittanceTransactionController::class, 'create']
-)->name('remittances.create');
+)->middleware('permission:remittance.create')->name('remittances.create');
 Route::get(
     '/account-transfers',
     [AccountTransferController::class, 'index']
-)->name('account-transfers.index');
+)->middleware('permission:account-transfer.view')->name('account-transfers.index');
 
 Route::get(
     '/account-transfers/create',
     [AccountTransferController::class, 'create']
-)->name('account-transfers.create');
+)->middleware('permission:account-transfer.create')->name('account-transfers.create');
 
 Route::post(
     '/account-transfers',
     [AccountTransferController::class, 'store']
-)->name('account-transfers.store');
+)->middleware('permission:account-transfer.create')->name('account-transfers.store');
 
 Route::get(
     '/account-transfers/date-convert',
     [AccountTransferController::class, 'convertDate']
-)->name('account-transfers.date-convert');
+)->middleware('permission:account-transfer.create')->name('account-transfers.date-convert');
 
 Route::post(
     '/account-transfers/{accountTransfer}/cancel',
     [AccountTransferController::class, 'cancel']
-)->name('account-transfers.cancel');
+)->middleware('permission:account-transfer.cancel')->name('account-transfers.cancel');
 
 Route::get(
     '/account-transfers/{accountTransfer}',
     [AccountTransferController::class, 'show']
-)->name('account-transfers.show');
+)->middleware('permission:account-transfer.view')->name('account-transfers.show');
 Route::post(
     '/remittances',
     [RemittanceTransactionController::class, 'store']
-)->name('remittances.store');
+)->middleware('permission:remittance.create')->name('remittances.store');
 
 Route::post(
     '/remittances/{remittance}/cancel',
     [RemittanceTransactionController::class, 'cancel']
-)->name('remittances.cancel');
+)->middleware('permission:remittance.cancel')->name('remittances.cancel');
 
 Route::get(
     '/remittances/{remittance}',
     [RemittanceTransactionController::class, 'show']
-)->name('remittances.show');
+)->middleware('permission:remittance.view')->name('remittances.show');
 Route::get(
     '/ledger',
     [LedgerController::class, 'index']
-)->name('ledger.index');
+)->middleware('permission:ledger.view')->name('ledger.index');
 Route::resource(
     'expense-categories',
     ExpenseCategoryController::class
@@ -180,36 +187,38 @@ Route::resource(
     'store',
     'edit',
     'update',
-]);
+])
+    ->middlewareFor('index', 'permission:expense-category.view')
+    ->middlewareFor(['create', 'store', 'edit', 'update'], 'permission:expense-category.manage');
 Route::get(
     '/expenses',
     [ExpenseController::class, 'index']
-)->name('expenses.index');
+)->middleware('permission:expense.view')->name('expenses.index');
 
 Route::get(
     '/expenses/create',
     [ExpenseController::class, 'create']
-)->name('expenses.create');
+)->middleware('permission:expense.create')->name('expenses.create');
 
 Route::post(
     '/expenses',
     [ExpenseController::class, 'store']
-)->name('expenses.store');
+)->middleware('permission:expense.create')->name('expenses.store');
 
 Route::get(
     '/expenses/date-convert',
     [ExpenseController::class, 'convertDate']
-)->name('expenses.date-convert');
+)->middleware('permission:expense.create')->name('expenses.date-convert');
 
 Route::post(
     '/expenses/{expense}/cancel',
     [ExpenseController::class, 'cancel']
-)->name('expenses.cancel');
+)->middleware('permission:expense.cancel')->name('expenses.cancel');
 
 Route::get(
     '/expenses/{expense}',
     [ExpenseController::class, 'show']
-)->name('expenses.show');
+)->middleware('permission:expense.view')->name('expenses.show');
 Route::resource(
     'income-categories',
     IncomeCategoryController::class
@@ -219,36 +228,38 @@ Route::resource(
     'store',
     'edit',
     'update',
-]);
+])
+    ->middlewareFor('index', 'permission:income-category.view')
+    ->middlewareFor(['create', 'store', 'edit', 'update'], 'permission:income-category.manage');
 Route::get(
     '/incomes',
     [IncomeController::class, 'index']
-)->name('incomes.index');
+)->middleware('permission:income.view')->name('incomes.index');
 
 Route::get(
     '/incomes/create',
     [IncomeController::class, 'create']
-)->name('incomes.create');
+)->middleware('permission:income.create')->name('incomes.create');
 
 Route::post(
     '/incomes',
     [IncomeController::class, 'store']
-)->name('incomes.store');
+)->middleware('permission:income.create')->name('incomes.store');
 
 Route::get(
     '/incomes/date-convert',
     [IncomeController::class, 'convertDate']
-)->name('incomes.date-convert');
+)->middleware('permission:income.create')->name('incomes.date-convert');
 
 Route::post(
     '/incomes/{income}/cancel',
     [IncomeController::class, 'cancel']
-)->name('incomes.cancel');
+)->middleware('permission:income.cancel')->name('incomes.cancel');
 
 Route::get(
     '/incomes/{income}',
     [IncomeController::class, 'show']
-)->name('incomes.show');
+)->middleware('permission:income.view')->name('incomes.show');
 Route::resource(
     'shareholders',
     ShareholderController::class
@@ -259,16 +270,19 @@ Route::resource(
     'show',
     'edit',
     'update',
-]);
+])
+    ->middlewareFor(['index', 'show'], 'permission:shareholder.view')
+    ->middlewareFor(['create', 'store'], 'permission:shareholder.create')
+    ->middlewareFor(['edit', 'update'], 'permission:shareholder.update');
 Route::get(
     '/share-transactions/convert-date',
     [ShareTransactionController::class, 'convertDate']
-)->name('share-transactions.convert-date');
+)->middleware('permission:share-transaction.create')->name('share-transactions.convert-date');
 
 Route::post(
     '/share-transactions/{shareTransaction}/cancel',
     [ShareTransactionController::class, 'cancel']
-)->name('share-transactions.cancel');
+)->middleware('permission:share-transaction.cancel')->name('share-transactions.cancel');
 
 Route::resource(
     'share-transactions',
@@ -278,7 +292,9 @@ Route::resource(
     'create',
     'store',
     'show',
-]);
+])
+    ->middlewareFor(['index', 'show'], 'permission:share-transaction.view')
+    ->middlewareFor(['create', 'store'], 'permission:share-transaction.create');
 Route::resource(
     'lenders',
     LenderController::class
@@ -288,16 +304,19 @@ Route::resource(
     'store',
     'edit',
     'update',
-]);
+])
+    ->middlewareFor('index', 'permission:lender.view')
+    ->middlewareFor(['create', 'store'], 'permission:lender.create')
+    ->middlewareFor(['edit', 'update'], 'permission:lender.update');
 Route::get(
     '/borrowings/convert-date',
     [BorrowingController::class, 'convertDate']
-)->name('borrowings.convert-date');
+)->middleware('permission:borrowing.create')->name('borrowings.convert-date');
 
 Route::post(
     '/borrowings/{borrowing}/cancel',
     [BorrowingController::class, 'cancel']
-)->name('borrowings.cancel');
+)->middleware('permission:borrowing.cancel')->name('borrowings.cancel');
 
 Route::resource(
     'borrowings',
@@ -306,7 +325,9 @@ Route::resource(
     'index',
     'create',
     'store',
-]);
+])
+    ->middlewareFor('index', 'permission:borrowing.view')
+    ->middlewareFor(['create', 'store'], 'permission:borrowing.create');
 
 
 });

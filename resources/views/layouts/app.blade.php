@@ -93,7 +93,7 @@
                 </a>
 
                 {{-- Customers --}}
-                @if (auth()->user()->isAdmin() || auth()->user()->isStaff())
+                @if (auth()->user()->hasPermission('customer.view'))
                     <a href="{{ route('customers.index') }}"
                        class="
                             block rounded-md px-4 py-2.5 text-sm
@@ -107,7 +107,7 @@
                 @endif
 
                 {{-- Remittance --}}
-                @if (auth()->user()->isAdmin() || auth()->user()->isStaff())
+                @if (auth()->user()->hasPermission('remittance.view'))
                     <a href="{{ route('remittances.index') }}"
                        class="
                             block rounded-md px-4 py-2.5 text-sm
@@ -119,7 +119,7 @@
                         Remittances
                     </a>
                 @endif
-@if (auth()->user()->isAdmin() || auth()->user()->isStaff())
+@if (auth()->user()->hasPermission('account-transfer.view'))
     <a href="{{ route('account-transfers.index') }}"
        class="
             block rounded-md px-4 py-2.5 text-sm
@@ -155,7 +155,7 @@
                         Opening Balances
                     </a>
                 @endif
-                @if (auth()->user()->isAdmin() || auth()->user()->isStaff())
+                @if (auth()->user()->hasPermission('ledger.view'))
     <a href="{{ route('ledger.index') }}"
        class="
             block rounded-md px-4 py-2.5 text-sm
@@ -167,7 +167,7 @@
         Ledger
     </a>
 @endif
-@if (auth()->user()->isAdmin() || auth()->user()->isStaff())
+@if (auth()->user()->hasPermission('expense.view'))
     <a href="{{ route('expenses.index') }}"
        class="
             block rounded-md px-4 py-2.5 text-sm
@@ -180,7 +180,7 @@
         Expense
     </a>
 @endif
-@if (auth()->user()->isAdmin() || auth()->user()->isStaff())
+@if (auth()->user()->hasPermission('income.view'))
     <a href="{{ route('incomes.index') }}"
        class="
             block rounded-md px-4 py-2.5 text-sm
@@ -193,7 +193,7 @@
         Income
     </a>
 @endif
-@if (auth()->user()->isAdmin() || auth()->user()->isStaff())
+@if (auth()->user()->hasPermission('shareholder.view'))
     <a href="{{ route('shareholders.index') }}"
        class="
             block rounded-md px-4 py-2.5 text-sm
@@ -205,7 +205,7 @@
         Shareholders
     </a>
 @endif
-@if (auth()->user()->isAdmin() || auth()->user()->isStaff())
+@if (auth()->user()->hasPermission('share-transaction.view'))
     <a href="{{ route('share-transactions.index') }}"
        class="
             block rounded-md px-4 py-2.5 text-sm

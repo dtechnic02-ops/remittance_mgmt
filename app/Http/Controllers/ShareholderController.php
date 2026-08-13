@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Shareholder;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -40,7 +41,9 @@ class ShareholderController extends Controller
     {
         $this->ensureAdminOrStaff();
 
-        return view('shareholders.create');
+        return view('shareholders.create', [
+            'shareholderUsers' => $this->availableShareholderUsers(),
+        ]);
     }
 
     public function store(Request $request)
@@ -48,6 +51,7 @@ class ShareholderController extends Controller
         $this->ensureAdminOrStaff();
 
         $validated = $request->validate([
+            'user_id' => $this->userLinkRules(),
             'code' => [
                 'required',
                 'string',
@@ -124,6 +128,10 @@ class ShareholderController extends Controller
                 'string',
             ],
         ]);
+
+        if (! auth()->user()->isAdmin()) {
+            unset($validated['user_id']);
+        }
 $validated['kitta'] = 0;
 $validated['per_kitta_value'] = 1000;
 $validated['total_investment'] = 0;
@@ -212,7 +220,12 @@ $validated['total_investment'] = 0;
 
         return view(
             'shareholders.edit',
-            compact('shareholder')
+            [
+                'shareholder' => $shareholder,
+                'shareholderUsers' => $this->availableShareholderUsers(
+                    $shareholder
+                ),
+            ]
         );
     }
 
@@ -223,6 +236,7 @@ $validated['total_investment'] = 0;
         $this->ensureAdminOrStaff();
 
         $validated = $request->validate([
+            'user_id' => $this->userLinkRules($shareholder),
             'code' => [
                 'required',
                 'string',
@@ -307,6 +321,10 @@ $validated['total_investment'] = 0;
             ],
         ]);
 
+        if (! auth()->user()->isAdmin()) {
+            unset($validated['user_id']);
+        }
+
     
 
         $validated['is_active'] =
@@ -377,5 +395,43 @@ $validated['total_investment'] = 0;
             ($user->isAdmin() || $user->isStaff()),
             403
         );
+    }
+
+    private function availableShareholderUsers(
+        ?Shareholder $shareholder = null
+    ) {
+        if (! auth()->user()->isAdmin()) {
+            return collect();
+        }
+
+        return User::query()
+            ->where('role', 'shareholder')
+            ->where(function ($query) use ($shareholder) {
+                $query->whereDoesntHave('shareholder');
+
+                if ($shareholder?->user_id) {
+                    $query->orWhereKey($shareholder->user_id);
+                }
+            })
+            ->orderBy('name')
+            ->get();
+    }
+
+    private function userLinkRules(
+        ?Shareholder $shareholder = null
+    ): array {
+        if (! auth()->user()->isAdmin()) {
+            return ['prohibited'];
+        }
+
+        return [
+            'nullable',
+            'integer',
+            Rule::exists('users', 'id')->where(
+                fn ($query) => $query->where('role', 'shareholder')
+            ),
+            Rule::unique('shareholders', 'user_id')
+                ->ignore($shareholder?->id),
+        ];
     }
 }
