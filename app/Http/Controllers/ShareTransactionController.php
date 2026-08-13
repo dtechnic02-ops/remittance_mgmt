@@ -168,6 +168,14 @@ class ShareTransactionController extends Controller
 
         try {
             $transaction = $this->service->create($validated);
+        } catch (\RuntimeException $exception) {
+            if ($attachment) {
+                Storage::disk('public')->delete($attachment);
+            }
+
+            return back()
+                ->withInput()
+                ->withErrors(['transaction' => $exception->getMessage()]);
         } catch (\Throwable $exception) {
             if ($attachment) {
                 Storage::disk('public')->delete($attachment);
@@ -224,11 +232,17 @@ class ShareTransactionController extends Controller
             ],
         ]);
 
-        $this->service->cancel(
-            $shareTransaction,
-            auth()->id(),
-            $validated['cancellation_reason']
-        );
+        try {
+            $this->service->cancel(
+                $shareTransaction,
+                auth()->id(),
+                $validated['cancellation_reason']
+            );
+        } catch (\RuntimeException $exception) {
+            return back()
+                ->withInput()
+                ->withErrors(['transaction' => $exception->getMessage()]);
+        }
 
         return redirect()
             ->route('share-transactions.show', $shareTransaction)

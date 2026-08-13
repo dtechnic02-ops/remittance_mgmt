@@ -98,6 +98,12 @@ class OpeningBalanceController extends Controller
             return back()
                 ->withInput()
                 ->withErrors(['opening_balance' => $exception->getMessage()]);
+        } catch (\Throwable $exception) {
+            if ($newAttachment) {
+                Storage::disk('public')->delete($newAttachment);
+            }
+
+            throw $exception;
         }
 
         return redirect()
@@ -179,6 +185,12 @@ class OpeningBalanceController extends Controller
             return back()
                 ->withInput()
                 ->withErrors(['opening_balance' => $exception->getMessage()]);
+        } catch (\Throwable $exception) {
+            if ($newAttachment) {
+                Storage::disk('public')->delete($newAttachment);
+            }
+
+            throw $exception;
         }
 
         if ($newAttachment && $oldAttachment) {

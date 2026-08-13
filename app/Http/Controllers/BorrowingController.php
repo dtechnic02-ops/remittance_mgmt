@@ -222,11 +222,17 @@ class BorrowingController extends Controller
             ],
         ]);
 
-        $this->service->cancel(
-            $borrowing,
-            auth()->id(),
-            $validated['cancellation_reason']
-        );
+        try {
+            $this->service->cancel(
+                $borrowing,
+                auth()->id(),
+                $validated['cancellation_reason']
+            );
+        } catch (\RuntimeException $exception) {
+            return back()
+                ->withInput()
+                ->withErrors(['transaction' => $exception->getMessage()]);
+        }
 
         return redirect()
             ->route('borrowings.index')

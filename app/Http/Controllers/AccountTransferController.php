@@ -134,7 +134,13 @@ class AccountTransferController extends Controller
         $validated['to_account_id'] = $toAccount->id;
         $validated['created_by'] = auth()->id();
 
-        $transfer = $this->service->create($validated);
+        try {
+            $transfer = $this->service->create($validated);
+        } catch (\RuntimeException $exception) {
+            return back()
+                ->withInput()
+                ->withErrors(['transaction' => $exception->getMessage()]);
+        }
 
         return redirect()
             ->route('account-transfers.show', $transfer)
@@ -183,11 +189,17 @@ class AccountTransferController extends Controller
             ],
         ]);
 
-        $this->service->cancel(
-            $accountTransfer,
-            auth()->id(),
-            $validated['cancellation_reason']
-        );
+        try {
+            $this->service->cancel(
+                $accountTransfer,
+                auth()->id(),
+                $validated['cancellation_reason']
+            );
+        } catch (\RuntimeException $exception) {
+            return back()
+                ->withInput()
+                ->withErrors(['transaction' => $exception->getMessage()]);
+        }
 
         return redirect()
             ->route('account-transfers.show', $accountTransfer)

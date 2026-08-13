@@ -159,6 +159,14 @@ class IncomeController extends Controller
 
         try {
             $income = $this->service->create($validated);
+        } catch (\RuntimeException $exception) {
+            if ($attachment) {
+                Storage::disk('public')->delete($attachment);
+            }
+
+            return back()
+                ->withInput()
+                ->withErrors(['transaction' => $exception->getMessage()]);
         } catch (\Throwable $exception) {
             if ($attachment) {
                 Storage::disk('public')->delete($attachment);
@@ -215,11 +223,17 @@ class IncomeController extends Controller
             ],
         ]);
 
-        $this->service->cancel(
-            $income,
-            auth()->id(),
-            $validated['cancellation_reason']
-        );
+        try {
+            $this->service->cancel(
+                $income,
+                auth()->id(),
+                $validated['cancellation_reason']
+            );
+        } catch (\RuntimeException $exception) {
+            return back()
+                ->withInput()
+                ->withErrors(['transaction' => $exception->getMessage()]);
+        }
 
         return redirect()
             ->route('incomes.show', $income)
