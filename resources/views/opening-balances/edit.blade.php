@@ -86,11 +86,12 @@
                                    name="amount"
                                    value="{{ old('amount', $openingBalance->amount) }}"
                                    required
+                                   min="0"
                                    step="1"
                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
 
                             <p class="mt-1 text-xs text-gray-500">
-                                Negative amount is allowed for approved accounts.
+                                Opening amount cannot be negative.
                             </p>
 
                             @error('amount')

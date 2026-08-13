@@ -88,6 +88,7 @@
                                    name="amount"
                                    value="{{ old('amount', 0) }}"
                                    required
+                                   min="0"
                                    step="1"
                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
 

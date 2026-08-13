@@ -9,6 +9,7 @@ use App\Services\OpeningBalanceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use RuntimeException;
 
 class OpeningBalanceController extends Controller
 {
@@ -75,15 +76,29 @@ class OpeningBalanceController extends Controller
                 ]);
         }
 
+        $newAttachment = null;
+
         if ($request->hasFile('attachment')) {
-            $validated['attachment'] = $request
+            $newAttachment = $request
                 ->file('attachment')
                 ->store('opening-balances', 'public');
+
+            $validated['attachment'] = $newAttachment;
         }
 
         $validated['created_by'] = auth()->id();
 
-        $this->openingBalanceService->create($validated);
+        try {
+            $this->openingBalanceService->create($validated);
+        } catch (RuntimeException $exception) {
+            if ($newAttachment) {
+                Storage::disk('public')->delete($newAttachment);
+            }
+
+            return back()
+                ->withInput()
+                ->withErrors(['opening_balance' => $exception->getMessage()]);
+        }
 
         return redirect()
             ->route('opening-balances.index')
@@ -138,24 +153,37 @@ class OpeningBalanceController extends Controller
                 ]);
         }
 
-        if ($request->hasFile('attachment')) {
-            if ($openingBalance->attachment) {
-                Storage::disk('public')->delete(
-                    $openingBalance->attachment
-                );
-            }
+        $oldAttachment = $openingBalance->attachment;
+        $newAttachment = null;
 
-            $validated['attachment'] = $request
+        if ($request->hasFile('attachment')) {
+            $newAttachment = $request
                 ->file('attachment')
                 ->store('opening-balances', 'public');
+
+            $validated['attachment'] = $newAttachment;
         }
 
         $validated['updated_by'] = auth()->id();
 
-        $this->openingBalanceService->update(
-            $openingBalance,
-            $validated
-        );
+        try {
+            $this->openingBalanceService->update(
+                $openingBalance,
+                $validated
+            );
+        } catch (RuntimeException $exception) {
+            if ($newAttachment) {
+                Storage::disk('public')->delete($newAttachment);
+            }
+
+            return back()
+                ->withInput()
+                ->withErrors(['opening_balance' => $exception->getMessage()]);
+        }
+
+        if ($newAttachment && $oldAttachment) {
+            Storage::disk('public')->delete($oldAttachment);
+        }
 
         return redirect()
             ->route('opening-balances.index')
