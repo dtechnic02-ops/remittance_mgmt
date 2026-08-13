@@ -20,6 +20,7 @@ use App\Http\Controllers\LenderController;
 use App\Http\Controllers\BorrowingController;
 use App\Http\Controllers\ShareholderPortalController;
 use App\Http\Controllers\PrivateFileController;
+use App\Http\Controllers\AdminDashboardController;
 Route::get('/', function () {
     return redirect()->route('login');
 });
@@ -44,9 +45,8 @@ Route::get('/dashboard', function () {
 
 
 Route::middleware(['auth', 'verified', 'admin'])->group(function () {
-    Route::get('/admin/dashboard', function () {
-        return view('admin.dashboard');
-    })->name('admin.dashboard');
+    Route::get('/admin/dashboard', AdminDashboardController::class)
+        ->name('admin.dashboard');
 
     Route::resource('accounts', AccountController::class);
     Route::get('/accounts/{account}/attachment', [PrivateFileController::class, 'account'])
