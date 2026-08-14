@@ -15,6 +15,7 @@ use App\Models\RemittanceTransaction;
 use App\Models\Shareholder;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class StaffDashboardFinancialTest extends TestCase
@@ -37,10 +38,10 @@ class StaffDashboardFinancialTest extends TestCase
         $this->assertSame(25000, $staffSummary['bank']);
         $this->assertSame(85000, $staffSummary['available']);
         $this->assertSame(-4000, $staffSummary['remittance']);
-        $this->assertSame(9000, $staffSummary['income']);
+        $this->assertSame(9600, $staffSummary['income']);
         $this->assertSame(1500, $staffSummary['commission']);
         $this->assertSame(12000, $staffSummary['expense']);
-        $this->assertSame(-1500, $staffSummary['profit_loss']);
+        $this->assertSame(-900, $staffSummary['profit_loss']);
         $this->assertSame(7000, $staffSummary['borrowing_outstanding']);
         $this->assertSame($financialYear, $staffResponse->viewData('financialYear'));
         $this->assertSame($staffSummary['cash'] + $staffSummary['bank'], $staffSummary['available']);
@@ -54,7 +55,9 @@ class StaffDashboardFinancialTest extends TestCase
     {
         [, $staff] = $this->seedDashboardData();
 
+        DB::enableQueryLog();
         $response = $this->actingAs($staff)->get(route('staff.dashboard'))->assertOk();
+        $queries = collect(DB::getQueryLog())->pluck('query');
         $summary = $response->viewData('summary');
         $monthly = $response->viewData('monthly');
 
@@ -68,15 +71,18 @@ class StaffDashboardFinancialTest extends TestCase
         $this->assertSame($summary['expense'], array_sum(array_column($monthly, 'expense')));
         $this->assertSame($summary['profit_loss'], array_sum(array_column($monthly, 'profit_loss')));
 
-        $this->assertSame(4000, $monthly[0]['income']);
+        $this->assertSame(4600, $monthly[0]['income']);
         $this->assertSame(1000, $monthly[0]['commission']);
         $this->assertSame(2000, $monthly[0]['expense']);
-        $this->assertSame(3000, $monthly[0]['profit_loss']);
+        $this->assertSame(3600, $monthly[0]['profit_loss']);
         $this->assertSame(-4500, $monthly[1]['profit_loss']);
         $this->assertSame(0, $monthly[2]['income']);
         $this->assertSame(0, $monthly[2]['commission']);
         $this->assertSame(0, $monthly[2]['expense']);
         $this->assertSame(0, $monthly[2]['profit_loss']);
+        $this->assertFalse($queries->contains(
+            fn (string $query) => str_contains(strtolower($query), 'cast(substr')
+        ));
 
         $response
             ->assertSee('Monthly Financial Chart')
@@ -152,6 +158,7 @@ class StaffDashboardFinancialTest extends TestCase
         ]);
 
         $this->income($admin, $incomeCategory, $cash, $financialYear, "{$startYear}-04-10", 4000, 'active');
+        $this->income($admin, $incomeCategory, $cash, $financialYear, "{$startYear}-04-20", 600, 'active');
         $this->income($admin, $incomeCategory, $cash, $financialYear, "{$startYear}-05-10", 5000, 'active');
         $this->income($admin, $incomeCategory, $cash, $financialYear, "{$startYear}-04-11", 8000, 'cancelled');
         $this->expense($admin, $expenseCategory, $cash, $financialYear, "{$startYear}-04-12", 2000, 'active');

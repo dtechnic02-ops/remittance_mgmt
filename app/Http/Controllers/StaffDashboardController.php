@@ -117,14 +117,23 @@ class StaffDashboardController extends Controller
 
     private function monthlyTotals(Builder $query, string $column, string $financialYear): array
     {
-        return $query
+        $totals = [];
+
+        foreach ($query
             ->where('status', 'active')
             ->where('financial_year', $financialYear)
-            ->selectRaw("CAST(SUBSTR(date_bs, 6, 2) AS INTEGER) as month_number, COALESCE(SUM({$column}), 0) as total")
-            ->groupByRaw('CAST(SUBSTR(date_bs, 6, 2) AS INTEGER)')
-            ->pluck('total', 'month_number')
-            ->map(fn ($total) => (int) $total)
-            ->all();
+            ->select(['date_bs', $column])
+            ->cursor() as $record) {
+            $month = (int) substr((string) $record->date_bs, 5, 2);
+
+            if ($month < 1 || $month > 12) {
+                continue;
+            }
+
+            $totals[$month] = ($totals[$month] ?? 0) + (int) $record->{$column};
+        }
+
+        return $totals;
     }
 
     private function currentFinancialYear(): string
