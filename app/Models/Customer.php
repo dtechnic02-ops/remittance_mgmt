@@ -11,13 +11,27 @@ class Customer extends Model
 {
     use HasFactory;
 
+    public const ACCOUNT_TYPES = [
+        'personal' => 'Personal',
+        'social_security' => 'Social Security',
+        'allowance' => 'Allowance',
+        'institution' => 'Institution',
+        'corporate' => 'Corporate',
+        'other' => 'Other',
+    ];
+
     protected $fillable = [
         'customer_code',
         'name',
+        'english_date',
+        'nepali_date',
         'mobile',
         'phone',
         'email',
         'address',
+        'account',
+        'branch',
+        'account_type',
         'citizenship_number',
         'photo',
         'citizenship_front',
@@ -33,9 +47,15 @@ class Customer extends Model
     protected function casts(): array
     {
         return [
+            'english_date' => 'date',
             'is_active' => 'boolean',
             'deactivated_at' => 'datetime',
         ];
+    }
+
+    public function accountTypeLabel(): ?string
+    {
+        return self::ACCOUNT_TYPES[$this->account_type] ?? null;
     }
 
     public function otherDocuments(): HasMany

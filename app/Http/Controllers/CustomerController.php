@@ -2,11 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use Anuzpandey\LaravelNepaliDate\LaravelNepaliDate;
+use Anuzpandey\LaravelNepaliDate\Exceptions\InvalidDateException;
 use App\Models\Customer;
+use App\Services\CustomerDateService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class CustomerController extends Controller
 {
@@ -24,6 +28,8 @@ class CustomerController extends Controller
                         ->orWhere('name', 'like', "%{$search}%")
                         ->orWhere('mobile', 'like', "%{$search}%")
                         ->orWhere('phone', 'like', "%{$search}%")
+                        ->orWhere('account', 'like', "%{$search}%")
+                        ->orWhere('branch', 'like', "%{$search}%")
                         ->orWhere('citizenship_number', 'like', "%{$search}%");
                 });
             })
@@ -38,7 +44,9 @@ class CustomerController extends Controller
     {
         $this->ensureAdminOrStaff();
 
-        return view('customers.create');
+        return view('customers.create', [
+            'accountTypes' => Customer::ACCOUNT_TYPES,
+        ]);
     }
 
     public function store(Request $request)
@@ -133,7 +141,10 @@ class CustomerController extends Controller
 
         $customer->load('otherDocuments');
 
-        return view('customers.edit', compact('customer'));
+        return view('customers.edit', [
+            'customer' => $customer,
+            'accountTypes' => Customer::ACCOUNT_TYPES,
+        ]);
     }
 
     public function update(Request $request, Customer $customer)
@@ -242,15 +253,72 @@ class CustomerController extends Controller
         );
     }
 
+    public function convertDate(Request $request)
+    {
+        $this->ensureAdminOrStaff();
+
+        $validated = $request->validate([
+            'english_date' => ['nullable', 'date', 'required_without:nepali_date'],
+            'nepali_date' => ['nullable', 'regex:/^\d{4}-\d{2}-\d{2}$/', 'required_without:english_date'],
+        ]);
+
+        try {
+            if (! empty($validated['english_date'])) {
+                if (! $this->isValidEnglishDate($validated['english_date'])) {
+                    throw ValidationException::withMessages([
+                        'english_date' => 'The English Date is invalid or unsupported.',
+                    ]);
+                }
+
+                return response()->json([
+                    'english_date' => $validated['english_date'],
+                    'nepali_date' => LaravelNepaliDate::from($validated['english_date'])
+                        ->toNepaliDate('Y-m-d', 'en'),
+                ]);
+            }
+
+            if (! $this->isValidNepaliDate($validated['nepali_date'])) {
+                throw ValidationException::withMessages([
+                    'nepali_date' => 'The Nepali Date is invalid or unsupported.',
+                ]);
+            }
+
+            return response()->json([
+                'english_date' => LaravelNepaliDate::from($validated['nepali_date'])
+                    ->toEnglishDate('Y-m-d', 'en'),
+                'nepali_date' => $validated['nepali_date'],
+            ]);
+        } catch (InvalidDateException) {
+            throw ValidationException::withMessages([
+                'date' => 'The supplied English or Nepali date is invalid or unsupported.',
+            ]);
+        }
+    }
+
     private function validateCustomer(
         Request $request,
         ?Customer $customer = null
     ): array {
-        return $request->validate([
+        $validated = $request->validate([
             'name' => [
                 'required',
                 'string',
                 'max:150',
+            ],
+
+            'english_date' => [
+                'nullable',
+                'date',
+            ],
+
+            'nepali_date' => [
+                'nullable',
+                'regex:/^\d{4}-\d{2}-\d{2}$/',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (! $this->isValidNepaliDate((string) $value)) {
+                        $fail('The Nepali Date is invalid or unsupported.');
+                    }
+                },
             ],
 
             'mobile' => [
@@ -275,6 +343,23 @@ class CustomerController extends Controller
                 'nullable',
                 'string',
                 'max:255',
+            ],
+
+            'account' => [
+                'nullable',
+                'string',
+                'max:100',
+            ],
+
+            'branch' => [
+                'nullable',
+                'string',
+                'max:150',
+            ],
+
+            'account_type' => [
+                'nullable',
+                Rule::in(array_keys(Customer::ACCOUNT_TYPES)),
             ],
 
             'citizenship_number' => [
@@ -322,6 +407,34 @@ class CustomerController extends Controller
                 'max:5120',
             ],
         ]);
+
+        return $this->synchronizeDates($validated);
+    }
+
+    private function synchronizeDates(array $validated): array
+    {
+        return array_replace($validated, app(CustomerDateService::class)->synchronize(
+            $validated['english_date'] ?? null,
+            $validated['nepali_date'] ?? null
+        ));
+    }
+
+    private function isValidEnglishDate(string $date): bool
+    {
+        try {
+            return LaravelNepaliDate::validateEnglish($date);
+        } catch (InvalidDateException) {
+            return false;
+        }
+    }
+
+    private function isValidNepaliDate(string $date): bool
+    {
+        try {
+            return LaravelNepaliDate::validateNepali($date);
+        } catch (InvalidDateException) {
+            return false;
+        }
     }
 
     private function deleteFile(?string $path): void

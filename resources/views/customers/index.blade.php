@@ -1,14 +1,17 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex items-center justify-between">
+        <div class="flex flex-wrap items-center justify-between gap-3">
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                 Customers
             </h2>
 
-            <a href="{{ route('customers.create') }}"
-               class="px-4 py-2 bg-gray-800 text-white rounded-md">
-                + New Customer
-            </a>
+            @if (auth()->user()->hasPermission('customer.create'))
+                <div class="flex flex-wrap items-center gap-3">
+                    <a href="{{ route('customers.import.template') }}" class="text-sm text-gray-600 hover:underline">Download Excel Template</a>
+                    <a href="{{ route('customers.import.create') }}" class="text-sm text-gray-600 hover:underline">Import Customers</a>
+                    <a href="{{ route('customers.create') }}" class="rounded-md bg-gray-800 px-4 py-2 text-white">+ New Customer</a>
+                </div>
+            @endif
         </div>
     </x-slot>
 
@@ -77,7 +80,11 @@
                                 </th>
 
                                 <th class="px-4 py-3">
-                                    Citizenship
+                                    Date
+                                </th>
+
+                                <th class="px-4 py-3">
+                                    Account Details
                                 </th>
 
                                 <th class="px-4 py-3">
@@ -144,7 +151,14 @@
                                     </td>
 
                                     <td class="px-4 py-3">
-                                        {{ $customer->citizenship_number ?: '-' }}
+                                        <div class="whitespace-nowrap text-sm">AD: {{ $customer->english_date?->format('Y-m-d') ?: '-' }}</div>
+                                        <div class="whitespace-nowrap text-xs text-gray-500">BS: {{ $customer->nepali_date ?: '-' }}</div>
+                                    </td>
+
+                                    <td class="px-4 py-3">
+                                        <div class="whitespace-nowrap text-sm">{{ $customer->account ?: '-' }}</div>
+                                        <div class="text-xs text-gray-500">{{ $customer->branch ?: '-' }}</div>
+                                        <div class="text-xs text-gray-500">{{ $customer->accountTypeLabel() ?: '-' }}</div>
                                     </td>
 
                                     <td class="px-4 py-3">

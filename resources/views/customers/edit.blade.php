@@ -73,6 +73,22 @@
                         </div>
 
                         <div>
+                            <label for="english_date" class="block text-sm font-medium text-gray-700">English Date (AD)</label>
+                            <input type="date" id="english_date" name="english_date"
+                                   value="{{ old('english_date', $customer->english_date?->format('Y-m-d')) }}"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                            @error('english_date') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+
+                        <div>
+                            <label for="nepali_date" class="block text-sm font-medium text-gray-700">Nepali Date (BS)</label>
+                            <input type="text" id="nepali_date" name="nepali_date"
+                                   value="{{ old('nepali_date', $customer->nepali_date) }}" placeholder="YYYY-MM-DD" maxlength="10"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                            @error('nepali_date') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+
+                        <div>
                             <label for="mobile"
                                    class="block text-sm font-medium text-gray-700">
                                 Mobile
@@ -170,6 +186,31 @@
                                     {{ $message }}
                                 </p>
                             @enderror
+                        </div>
+
+                        <div>
+                            <label for="account" class="block text-sm font-medium text-gray-700">Account</label>
+                            <input type="text" id="account" name="account" value="{{ old('account', $customer->account) }}" maxlength="100"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                            @error('account') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+
+                        <div>
+                            <label for="branch" class="block text-sm font-medium text-gray-700">Branch</label>
+                            <input type="text" id="branch" name="branch" value="{{ old('branch', $customer->branch) }}" maxlength="150"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                            @error('branch') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        </div>
+
+                        <div>
+                            <label for="account_type" class="block text-sm font-medium text-gray-700">Account Type</label>
+                            <select id="account_type" name="account_type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                <option value="">Select Account Type</option>
+                                @foreach ($accountTypes as $value => $label)
+                                    <option value="{{ $value }}" @selected(old('account_type', $customer->account_type) === $value)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                            @error('account_type') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                         </div>
 
                     </div>
@@ -367,4 +408,28 @@
         @method('DELETE')
     </form>
 @endforeach
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const english = document.getElementById('english_date');
+            const nepali = document.getElementById('nepali_date');
+            let converting = false;
+
+            async function convert(field, value) {
+                if (!value || converting) return;
+                converting = true;
+                try {
+                    const response = await fetch(`{{ route('customers.date-convert') }}?${field}=${encodeURIComponent(value)}`);
+                    if (!response.ok) return;
+                    const data = await response.json();
+                    english.value = data.english_date;
+                    nepali.value = data.nepali_date;
+                } finally {
+                    converting = false;
+                }
+            }
+
+            english.addEventListener('change', () => convert('english_date', english.value));
+            nepali.addEventListener('change', () => convert('nepali_date', nepali.value));
+        });
+    </script>
 </x-app-layout>

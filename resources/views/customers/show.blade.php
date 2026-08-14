@@ -88,6 +88,16 @@
                                 </div>
 
                                 <div>
+                                    <p class="text-sm text-gray-500">English Date (AD)</p>
+                                    <p class="font-semibold">{{ $customer->english_date?->format('Y-m-d') ?: '-' }}</p>
+                                </div>
+
+                                <div>
+                                    <p class="text-sm text-gray-500">Nepali Date (BS)</p>
+                                    <p class="font-semibold">{{ $customer->nepali_date ?: '-' }}</p>
+                                </div>
+
+                                <div>
                                     <p class="text-sm text-gray-500">
                                         Phone
                                     </p>
@@ -121,6 +131,21 @@
                                     <p class="font-semibold">
                                         {{ $customer->address ?: '-' }}
                                     </p>
+                                </div>
+
+                                <div>
+                                    <p class="text-sm text-gray-500">Account</p>
+                                    <p class="font-semibold">{{ $customer->account ?: '-' }}</p>
+                                </div>
+
+                                <div>
+                                    <p class="text-sm text-gray-500">Branch</p>
+                                    <p class="font-semibold">{{ $customer->branch ?: '-' }}</p>
+                                </div>
+
+                                <div>
+                                    <p class="text-sm text-gray-500">Account Type</p>
+                                    <p class="font-semibold">{{ $customer->accountTypeLabel() ?: '-' }}</p>
                                 </div>
 
                                 <div>

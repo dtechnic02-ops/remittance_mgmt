@@ -21,6 +21,7 @@ use App\Http\Controllers\BorrowingController;
 use App\Http\Controllers\ShareholderPortalController;
 use App\Http\Controllers\PrivateFileController;
 use App\Http\Controllers\AdminDashboardController;
+use App\Http\Controllers\CustomerImportController;
 Route::get('/', function () {
     return redirect()->route('login');
 });
@@ -104,6 +105,15 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
+
+    Route::get('/customers/date-convert', [CustomerController::class, 'convertDate'])
+        ->name('customers.date-convert');
+    Route::get('/customers/import', [CustomerImportController::class, 'create'])
+        ->middleware('permission:customer.create')->name('customers.import.create');
+    Route::post('/customers/import', [CustomerImportController::class, 'store'])
+        ->middleware('permission:customer.create')->name('customers.import.store');
+    Route::get('/customers/import/template', [CustomerImportController::class, 'template'])
+        ->middleware('permission:customer.create')->name('customers.import.template');
 
     Route::get('/customers/{customer}/documents/type/{type}', [PrivateFileController::class, 'customer'])
         ->middleware('permission:customer.view')->name('customers.documents.type');
