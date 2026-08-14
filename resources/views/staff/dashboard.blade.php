@@ -1,73 +1,109 @@
 <x-app-layout>
     <x-slot name="header">
-        <div>
-            <h2 class="text-xl font-semibold text-gray-800">Staff Dashboard</h2>
-            <p class="mt-1 text-sm text-gray-500">
-                {{ auth()->user()->name }} — Your available operations
-            </p>
+        <div class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+                <h2 class="text-xl font-semibold text-gray-800">Staff Dashboard</h2>
+                <p class="mt-1 text-sm text-gray-500">Financial overview and your available operations</p>
+            </div>
+            <p class="text-sm text-gray-600">Welcome, {{ auth()->user()->name }}</p>
         </div>
     </x-slot>
 
     @php
-        $user = auth()->user();
-        $modules = [
-            ['title' => 'Customers', 'description' => 'View and manage customer records.', 'view' => 'customer.view', 'viewRoute' => 'customers.index', 'create' => 'customer.create', 'createRoute' => 'customers.create', 'createLabel' => 'New Customer'],
-            ['title' => 'Remittances', 'description' => 'Review remittance transactions and create new entries.', 'view' => 'remittance.view', 'viewRoute' => 'remittances.index', 'create' => 'remittance.create', 'createRoute' => 'remittances.create', 'createLabel' => 'New Remittance'],
-            ['title' => 'Account Transfers', 'description' => 'Review transfers between financial accounts.', 'view' => 'account-transfer.view', 'viewRoute' => 'account-transfers.index', 'create' => 'account-transfer.create', 'createRoute' => 'account-transfers.create', 'createLabel' => 'New Transfer'],
-            ['title' => 'Ledger', 'description' => 'Review authorized financial ledger entries.', 'view' => 'ledger.view', 'viewRoute' => 'ledger.index'],
-            ['title' => 'Expenses', 'description' => 'Review business expenses and record new expenses.', 'view' => 'expense.view', 'viewRoute' => 'expenses.index', 'create' => 'expense.create', 'createRoute' => 'expenses.create', 'createLabel' => 'New Expense'],
-            ['title' => 'Income', 'description' => 'Review income entries and record new income.', 'view' => 'income.view', 'viewRoute' => 'incomes.index', 'create' => 'income.create', 'createRoute' => 'incomes.create', 'createLabel' => 'New Income'],
-            ['title' => 'Shareholders', 'description' => 'View and maintain authorized shareholder records.', 'view' => 'shareholder.view', 'viewRoute' => 'shareholders.index', 'create' => 'shareholder.create', 'createRoute' => 'shareholders.create', 'createLabel' => 'New Shareholder'],
-            ['title' => 'Share Transactions', 'description' => 'Review share activity and record authorized transactions.', 'view' => 'share-transaction.view', 'viewRoute' => 'share-transactions.index', 'create' => 'share-transaction.create', 'createRoute' => 'share-transactions.create', 'createLabel' => 'New Share Transaction'],
-            ['title' => 'Lenders', 'description' => 'View and maintain authorized lender records.', 'view' => 'lender.view', 'viewRoute' => 'lenders.index', 'create' => 'lender.create', 'createRoute' => 'lenders.create', 'createLabel' => 'New Lender'],
-            ['title' => 'Borrowings', 'description' => 'Review borrowing activity and record new transactions.', 'view' => 'borrowing.view', 'viewRoute' => 'borrowings.index', 'create' => 'borrowing.create', 'createRoute' => 'borrowings.create', 'createLabel' => 'New Borrowing'],
-            ['title' => 'Expense Categories', 'description' => 'View or manage expense categories.', 'view' => 'expense-category.view', 'viewRoute' => 'expense-categories.index', 'create' => 'expense-category.manage', 'createRoute' => 'expense-categories.create', 'createLabel' => 'Manage Categories'],
-            ['title' => 'Income Categories', 'description' => 'View or manage income categories.', 'view' => 'income-category.view', 'viewRoute' => 'income-categories.index', 'create' => 'income-category.manage', 'createRoute' => 'income-categories.create', 'createLabel' => 'Manage Categories'],
+        $signed = fn (int $value) => ($value > 0 ? '+' : ($value < 0 ? '-' : '')).number_format(abs($value));
+        $series = [
+            ['key' => 'income', 'label' => 'Income', 'color' => 'bg-emerald-500'],
+            ['key' => 'commission', 'label' => 'Commission', 'color' => 'bg-blue-500'],
+            ['key' => 'expense', 'label' => 'Expense', 'color' => 'bg-amber-500'],
+            ['key' => 'profit_loss', 'label' => 'Profit/Loss', 'color' => 'bg-violet-500'],
         ];
-
-        $visibleModules = collect($modules)->filter(fn ($module) =>
-            $user->hasPermission($module['view'])
-            || (isset($module['create']) && $user->hasPermission($module['create']))
-        );
     @endphp
 
     <div class="py-8">
-        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            @if ($visibleModules->isEmpty())
-                <div class="rounded-lg border border-gray-200 bg-white p-6 text-center shadow-sm sm:p-10">
-                    <h3 class="text-lg font-semibold text-gray-800">No operations available</h3>
-                    <p class="mx-auto mt-2 max-w-xl text-sm text-gray-600">
-                        No operational permissions have been assigned to your account yet. Please contact the administrator.
-                    </p>
+        <div class="mx-auto max-w-7xl space-y-8 px-4 sm:px-6 lg:px-8">
+            <section>
+                <h3 class="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">Current Position</h3>
+                <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <x-dashboard-card title="Total Share Capital" :value="number_format($summary['share_capital'])" />
+                    <x-dashboard-card title="Cash Balance" :value="$signed($summary['cash'])" />
+                    <x-dashboard-card title="Bank Balance" :value="$signed($summary['bank'])" />
+                    <x-dashboard-card title="Available Cash & Bank" :value="number_format($summary['available'])" featured />
                 </div>
-            @else
-                <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                    @foreach ($visibleModules as $module)
-                        <section class="flex flex-col rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-                            <div class="flex-1">
-                                <h3 class="text-lg font-semibold text-gray-900">{{ $module['title'] }}</h3>
-                                <p class="mt-2 text-sm leading-6 text-gray-600">{{ $module['description'] }}</p>
-                            </div>
+            </section>
 
-                            <div class="mt-5 flex flex-col gap-2 sm:flex-row">
-                                @if ($user->hasPermission($module['view']))
-                                    <a href="{{ route($module['viewRoute']) }}"
-                                       class="inline-flex min-h-11 items-center justify-center rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                                        View {{ $module['title'] }}
-                                    </a>
-                                @endif
-
-                                @if (isset($module['create']) && $user->hasPermission($module['create']))
-                                    <a href="{{ route($module['createRoute']) }}"
-                                       class="inline-flex min-h-11 items-center justify-center rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800">
-                                        {{ $module['createLabel'] }}
-                                    </a>
-                                @endif
-                            </div>
-                        </section>
-                    @endforeach
+            <section>
+                <h3 class="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">Business Result — FY {{ $financialYear }}</h3>
+                <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <x-dashboard-card title="Total Income" :value="$signed($summary['income'])" />
+                    <x-dashboard-card title="Total Commission" :value="$signed($summary['commission'])" />
+                    <x-dashboard-card title="Total Expense" :value="'-'.number_format($summary['expense'])" />
+                    <x-dashboard-card title="Net Profit / Loss" :value="$signed($summary['profit_loss'])" :negative="$summary['profit_loss'] < 0" featured />
                 </div>
-            @endif
+            </section>
+
+            <section>
+                <h3 class="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">Other Position</h3>
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <x-dashboard-card title="Remittance Position" :value="$signed($summary['remittance'])" />
+                    <x-dashboard-card title="Borrowing Outstanding" :value="number_format($summary['borrowing_outstanding'])" />
+                </div>
+                <p class="mt-3 text-xs text-gray-500">Share capital and borrowing are funding sources/liabilities and are not added to profit or available cash and bank.</p>
+            </section>
+
+            <section class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h3 class="text-base font-semibold text-gray-900">Monthly Financial Chart</h3>
+                        <p class="mt-1 text-sm text-gray-500">Business performance for Nepali FY {{ $financialYear }}</p>
+                    </div>
+                    <div class="flex flex-wrap gap-x-4 gap-y-2" aria-label="Chart legend">
+                        @foreach ($series as $item)
+                            <span class="inline-flex items-center gap-1.5 text-xs text-gray-600"><span class="h-2.5 w-2.5 rounded-sm {{ $item['color'] }}"></span>{{ $item['label'] }}</span>
+                        @endforeach
+                    </div>
+                </div>
+
+                <div class="mt-6 overflow-x-auto pb-2">
+                    <div class="min-w-[760px]" role="img" aria-label="Monthly income, commission, expense, and profit or loss chart">
+                        <div class="relative h-64 border-y border-gray-200">
+                            <div class="absolute inset-x-0 top-1/2 border-t border-dashed border-gray-400"></div>
+                            <div class="grid h-full grid-cols-12 gap-2 px-2">
+                                @foreach ($monthly as $month)
+                                    <div class="relative flex h-full items-stretch justify-center gap-px">
+                                        @foreach ($series as $item)
+                                            @php
+                                                $value = $month[$item['key']];
+                                                $height = abs($value) / $chartMax * 46;
+                                            @endphp
+                                            <div class="absolute left-auto w-2 {{ $item['color'] }} {{ $value < 0 ? 'top-1/2 rounded-b-sm' : 'bottom-1/2 rounded-t-sm' }}"
+                                                 style="height: {{ $height }}%; transform: translateX({{ ($loop->index - 1.5) * 9 }}px)"
+                                                 title="{{ $month['label'] }} {{ $item['label'] }}: {{ number_format($value) }}"></div>
+                                        @endforeach
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-12 gap-2 px-2 pt-2">
+                            @foreach ($monthly as $month)
+                                <div class="text-center text-[11px] font-medium text-gray-600">{{ $month['label'] }}</div>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 overflow-x-auto">
+                    <table class="min-w-full text-sm">
+                        <caption class="sr-only">Exact monthly financial values</caption>
+                        <thead><tr class="border-b text-left text-xs uppercase tracking-wide text-gray-500"><th class="py-2 pr-4">Month</th><th class="px-3 py-2 text-right">Income</th><th class="px-3 py-2 text-right">Commission</th><th class="px-3 py-2 text-right">Expense</th><th class="py-2 pl-3 text-right">Profit/Loss</th></tr></thead>
+                        <tbody>
+                            @foreach ($monthly as $month)
+                                <tr class="border-b border-gray-100 last:border-0"><th class="py-2 pr-4 font-medium text-gray-700">{{ $month['label'] }}</th><td class="px-3 py-2 text-right tabular-nums">{{ number_format($month['income']) }}</td><td class="px-3 py-2 text-right tabular-nums">{{ number_format($month['commission']) }}</td><td class="px-3 py-2 text-right tabular-nums">{{ number_format($month['expense']) }}</td><td @class(['py-2 pl-3 text-right tabular-nums', 'text-red-700' => $month['profit_loss'] < 0])>{{ $signed($month['profit_loss']) }}</td></tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
         </div>
     </div>
 </x-app-layout>

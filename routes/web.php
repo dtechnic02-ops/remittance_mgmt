@@ -22,6 +22,7 @@ use App\Http\Controllers\ShareholderPortalController;
 use App\Http\Controllers\PrivateFileController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\CustomerImportController;
+use App\Http\Controllers\StaffDashboardController;
 Route::get('/', function () {
     return redirect()->route('login');
 });
@@ -82,9 +83,8 @@ Route::resource('staff', StaffController::class)
 });
 
 Route::middleware(['auth', 'verified', 'staff'])->group(function () {
-    Route::get('/staff/dashboard', function () {
-        return view('staff.dashboard');
-    })->name('staff.dashboard');
+    Route::get('/staff/dashboard', StaffDashboardController::class)
+        ->name('staff.dashboard');
 });
 
 

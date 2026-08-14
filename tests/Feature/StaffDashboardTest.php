@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\Permission;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -11,7 +10,7 @@ class StaffDashboardTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_staff_can_access_dashboard_and_no_permissions_show_safe_empty_state(): void
+    public function test_staff_can_access_financial_dashboard(): void
     {
         $staff = $this->user('staff');
 
@@ -19,7 +18,8 @@ class StaffDashboardTest extends TestCase
             ->get(route('staff.dashboard'))
             ->assertOk()
             ->assertSee('Staff Dashboard')
-            ->assertSee('No operational permissions have been assigned');
+            ->assertSee('Monthly Financial Chart')
+            ->assertDontSee('Your Operations');
     }
 
     public function test_shareholder_and_guest_cannot_access_staff_dashboard(): void
@@ -31,36 +31,6 @@ class StaffDashboardTest extends TestCase
         auth()->logout();
         $this->get(route('staff.dashboard'))
             ->assertRedirect(route('login'));
-    }
-
-    public function test_customer_module_and_create_action_follow_exact_permissions(): void
-    {
-        $staff = $this->user('staff');
-        $this->grant($staff, 'customer.view');
-
-        $viewOnly = $this->actingAs($staff)->get(route('staff.dashboard'));
-        $viewOnly->assertSee('Customers')->assertSee('View Customers')->assertDontSee('New Customer');
-
-        $this->grant($staff, 'customer.create');
-        $this->actingAs($staff)->get(route('staff.dashboard'))
-            ->assertSee('New Customer');
-    }
-
-    public function test_remittance_module_and_create_action_follow_exact_permissions(): void
-    {
-        $staff = $this->user('staff');
-
-        $this->actingAs($staff)->get(route('staff.dashboard'))
-            ->assertDontSee('Remittances');
-
-        $this->grant($staff, 'remittance.view');
-        $this->actingAs($staff)->get(route('staff.dashboard'))
-            ->assertSee('Remittances')
-            ->assertDontSee('New Remittance');
-
-        $this->grant($staff, 'remittance.create');
-        $this->actingAs($staff)->get(route('staff.dashboard'))
-            ->assertSee('New Remittance');
     }
 
     public function test_staff_cannot_open_protected_url_without_permission(): void
@@ -85,11 +55,4 @@ class StaffDashboardTest extends TestCase
         ]);
     }
 
-    private function grant(User $user, string $code): void
-    {
-        $permission = Permission::query()->where('code', $code)->firstOrFail();
-        $user->permissions()->syncWithoutDetaching([
-            $permission->id => ['assigned_at' => now()],
-        ]);
-    }
 }
