@@ -8,16 +8,21 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
+use App\Models\CompanyInfo;
+use App\Models\CompanyLink;
 
 class AuthenticatedSessionController extends Controller
 {
     /**
      * Display the login view.
      */
-    public function create(): View
-    {
-        return view('auth.login');
-    }
+  public function create(): View
+{
+    $companyInfo = CompanyInfo::first();
+    $companyLinks = CompanyLink::all();
+
+    return view('auth.login', compact('companyInfo', 'companyLinks'));
+}
 
     /**
      * Handle an incoming authentication request.

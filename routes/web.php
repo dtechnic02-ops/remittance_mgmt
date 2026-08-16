@@ -23,9 +23,13 @@ use App\Http\Controllers\PrivateFileController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\CustomerImportController;
 use App\Http\Controllers\StaffDashboardController;
-Route::get('/', function () {
-    return redirect()->route('login');
-});
+use App\Http\Controllers\CompanyInfoController;
+use App\Http\Controllers\CompanyLinkController;
+use App\Http\Controllers\PublicPageController;
+Route::get('/', [PublicPageController::class, 'index'])
+    ->name('home');
+
+
 
 Route::get('/dashboard', function () {
     $user = auth()->user();
@@ -80,7 +84,25 @@ Route::resource('staff', StaffController::class)
         'update',
         'destroy',
     ]);
+    Route::get('/admin/company-info', [CompanyInfoController::class, 'edit'])
+    ->name('company-info.edit');
+
+Route::put('/admin/company-info', [CompanyInfoController::class, 'update'])
+    ->name('company-info.update');
+
+    Route::get('/admin/company-links', [CompanyLinkController::class, 'index'])
+    ->name('company-links.index');
+
+Route::post('/admin/company-links', [CompanyLinkController::class, 'store'])
+    ->name('company-links.store');
+
+Route::put('/admin/company-links/{companyLink}', [CompanyLinkController::class, 'update'])
+    ->name('company-links.update');
+
+Route::delete('/admin/company-links/{companyLink}', [CompanyLinkController::class, 'destroy'])
+    ->name('company-links.destroy');
 });
+
 
 Route::middleware(['auth', 'verified', 'staff'])->group(function () {
     Route::get('/staff/dashboard', StaffDashboardController::class)

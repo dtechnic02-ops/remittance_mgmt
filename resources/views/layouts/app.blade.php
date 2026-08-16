@@ -236,7 +236,38 @@
                            ">
                             Staff
                         </a>
+                            <a href="{{ route('staff-permissions.index') }}"
+   class="
+        block rounded-md px-4 py-2.5 text-sm
+        {{ request()->routeIs('staff-permissions.*')
+            ? 'bg-gray-800 text-white'
+            : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+        }}
+   ">
+    Staff Permissions
+</a>
 
+<a href="{{ route('company-info.edit') }}"
+   class="
+        block rounded-md px-4 py-2.5 text-sm
+        {{ request()->routeIs('company-info.*')
+            ? 'bg-gray-800 text-white'
+            : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+        }}
+   ">
+    Company Info
+</a>
+
+<a href="{{ route('company-links.index') }}"
+   class="
+        block rounded-md px-4 py-2.5 text-sm
+        {{ request()->routeIs('company-links.*')
+            ? 'bg-gray-800 text-white'
+            : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+        }}
+   ">
+    Company Links
+</a>
                         <a href="{{ route('staff-permissions.index') }}"
                            class="
                                 block rounded-md px-4 py-2.5 text-sm
