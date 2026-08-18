@@ -48,7 +48,7 @@
 
     <div class="py-5">
 
-        <div class="w-full space-y-5 px-4 sm:px-5 lg:px-6">
+      <div class="mx-auto w-full max-w-[1400px] space-y-5 px-4 sm:px-6 lg:px-8">
 
             {{-- Current Position --}}
             <section>
