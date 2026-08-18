@@ -51,10 +51,8 @@ class AccountTransferService
                 );
             }
 
-            $transferNumber = $this->nextTransferNumber();
-
             $transfer = AccountTransfer::create([
-                'transfer_number' => $transferNumber,
+                'transfer_number' => TransactionNumberService::temporary(),
                 'from_account_id' => $fromAccount->id,
                 'to_account_id' => $toAccount->id,
                 'date_ad' => $data['date_ad'],
@@ -66,6 +64,9 @@ class AccountTransferService
                 'status' => 'active',
                 'created_by' => $data['created_by'],
             ]);
+
+            $transfer->transfer_number = TransactionNumberService::fromId('TRF-', $transfer->id);
+            $transfer->save();
 
             $commonLedgerData = [
                 'transaction_type' => 'account_transfer',
@@ -157,17 +158,4 @@ class AccountTransferService
         });
     }
 
-    private function nextTransferNumber(): string
-    {
-        $lastId = (int) AccountTransfer::query()
-            ->lockForUpdate()
-            ->max('id');
-
-        return 'TRF-'.str_pad(
-            (string) ($lastId + 1),
-            6,
-            '0',
-            STR_PAD_LEFT
-        );
-    }
 }

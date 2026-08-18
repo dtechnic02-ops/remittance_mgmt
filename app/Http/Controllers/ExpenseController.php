@@ -6,6 +6,7 @@ use App\Models\Account;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Services\ExpenseService;
+use App\Services\FinancialDateService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -133,6 +134,11 @@ class ExpenseController extends Controller
                 'max:5120',
             ],
         ]);
+
+        $validated = array_replace(
+            $validated,
+            app(FinancialDateService::class)->fromEnglishDate($validated['date_ad'])
+        );
 
         $category = ExpenseCategory::query()
             ->whereKey($validated['expense_category_id'])

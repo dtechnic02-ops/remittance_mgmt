@@ -48,10 +48,8 @@ class ExpenseService
                 );
             }
 
-            $expenseNumber = $this->nextExpenseNumber();
-
             $expense = Expense::create([
-                'expense_number' => $expenseNumber,
+                'expense_number' => TransactionNumberService::temporary(),
                 'expense_category_id' => $category->id,
                 'account_id' => $account->id,
                 'date_ad' => $data['date_ad'],
@@ -64,6 +62,9 @@ class ExpenseService
                 'status' => 'active',
                 'created_by' => $data['created_by'],
             ]);
+
+            $expense->expense_number = TransactionNumberService::fromId('EXP-', $expense->id);
+            $expense->save();
 
             $this->ledgerService->post([
                 'transaction_type' => 'expense',
@@ -144,17 +145,4 @@ class ExpenseService
         });
     }
 
-    private function nextExpenseNumber(): string
-    {
-        $lastId = (int) Expense::query()
-            ->lockForUpdate()
-            ->max('id');
-
-        return 'EXP-'.str_pad(
-            (string) ($lastId + 1),
-            6,
-            '0',
-            STR_PAD_LEFT
-        );
-    }
 }

@@ -50,6 +50,37 @@
                 <p class="mt-3 text-xs text-gray-500">Share capital and borrowing are funding sources/liabilities and are not added to profit or available cash and bank.</p>
             </section>
 
+<section
+    class="
+        rounded-xl border border-green-200
+        bg-green-50
+        p-5 shadow-sm
+        sm:p-6
+    "
+>
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+
+        <div>
+            <div class="text-sm font-medium text-green-700">
+                Net Amount
+            </div>
+
+            <div class="mt-1 text-xs text-gray-500">
+                Available Cash & Bank + Remittance Position
+            </div>
+        </div>
+
+        <div class="text-3xl font-bold text-green-700">
+            {{ number_format($summary['net_amount']) }}
+        </div>
+
+    </div>
+
+    <p class="mt-4 text-xs text-gray-500">
+        Total net amount available including cash, bank and remittance position.
+    </p>
+</section>
+
             <section class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>

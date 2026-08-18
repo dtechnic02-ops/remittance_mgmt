@@ -26,6 +26,10 @@ use App\Http\Controllers\StaffDashboardController;
 use App\Http\Controllers\CompanyInfoController;
 use App\Http\Controllers\CompanyLinkController;
 use App\Http\Controllers\PublicPageController;
+use App\Http\Controllers\ShareTransferController;
+use App\Http\Controllers\ShareholderAccountController;
+use App\Http\Controllers\UserController;
+
 Route::get('/', [PublicPageController::class, 'index'])
     ->name('home');
 
@@ -65,7 +69,20 @@ Route::resource('opening-balances', OpeningBalanceController::class)
     '/staff-permissions',
     [StaffPermissionController::class, 'index']
 )->name('staff-permissions.index');
+Route::get(
+    '/admin/users',
+    [UserController::class, 'index']
+)->name('users.index');
 
+Route::post(
+    '/admin/users/{user}/block',
+    [UserController::class, 'block']
+)->name('users.block');
+
+Route::post(
+    '/admin/users/{user}/unblock',
+    [UserController::class, 'unblock']
+)->name('users.unblock');
 Route::get(
     '/staff-permissions/{user}/edit',
     [StaffPermissionController::class, 'edit']
@@ -101,6 +118,20 @@ Route::put('/admin/company-links/{companyLink}', [CompanyLinkController::class, 
 
 Route::delete('/admin/company-links/{companyLink}', [CompanyLinkController::class, 'destroy'])
     ->name('company-links.destroy');
+    Route::get(
+    '/admin/shareholders/{shareholder}/login-account',
+    [ShareholderAccountController::class, 'edit']
+)->name('shareholder-accounts.edit');
+
+Route::put(
+    '/admin/shareholders/{shareholder}/login-account',
+    [ShareholderAccountController::class, 'update']
+)->name('shareholder-accounts.update');
+
+Route::post(
+    '/admin/shareholders/{shareholder}/login-account/deactivate',
+    [ShareholderAccountController::class, 'deactivate']
+)->name('shareholder-accounts.deactivate');
 });
 
 
@@ -334,11 +365,34 @@ Route::get(
     '/share-transactions/convert-date',
     [ShareTransactionController::class, 'convertDate']
 )->middleware('permission:share-transaction.create')->name('share-transactions.convert-date');
+Route::get(
+    '/share-transfers',
+    [ShareTransferController::class, 'index']
+)->name('share-transfers.index');
 
+Route::get(
+    '/share-transfers/create',
+    [ShareTransferController::class, 'create']
+)->name('share-transfers.create');
+
+Route::post(
+    '/share-transfers',
+    [ShareTransferController::class, 'store']
+)->name('share-transfers.store');
+
+Route::get(
+    '/share-transfers/convert-date',
+    [ShareTransferController::class, 'convertDate']
+)->name('share-transfers.convert-date');
+Route::get(
+    '/share-transfers/{shareTransfer}/attachment',
+    [PrivateFileController::class, 'shareTransfer']
+)->name('share-transfers.attachment');
 Route::post(
     '/share-transactions/{shareTransaction}/cancel',
     [ShareTransactionController::class, 'cancel']
 )->middleware('permission:share-transaction.cancel')->name('share-transactions.cancel');
+
 
 Route::resource(
     'share-transactions',

@@ -12,11 +12,13 @@ class ShareTransaction extends Model
 
     public const TYPE_BUY = 'buy';
     public const TYPE_WITHDRAW = 'withdraw';
+    public const TYPE_TRANSFER = 'transfer';
 
     protected $fillable = [
         'transaction_number',
         'transaction_type',
         'shareholder_id',
+        'to_shareholder_id',
         'account_id',
         'date_ad',
         'date_bs',
@@ -50,6 +52,7 @@ class ShareTransaction extends Model
         return [
             self::TYPE_BUY => 'Buy Kitta',
             self::TYPE_WITHDRAW => 'Withdraw Share',
+            self::TYPE_TRANSFER => 'Share Transfer',
         ];
     }
 
@@ -58,6 +61,14 @@ class ShareTransaction extends Model
         return $this->belongsTo(
             Shareholder::class,
             'shareholder_id'
+        );
+    }
+
+    public function toShareholder(): BelongsTo
+    {
+        return $this->belongsTo(
+            Shareholder::class,
+            'to_shareholder_id'
         );
     }
 

@@ -205,6 +205,18 @@
         Shareholders
     </a>
 @endif
+@if (auth()->user()->hasPermission('lender.view'))
+    <a href="{{ route('lenders.index') }}"
+       class="
+            block rounded-md px-4 py-2.5 text-sm
+            {{ request()->routeIs('lenders.*')
+                ? 'bg-gray-800 text-white'
+                : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+            }}
+       ">
+        Lenders
+    </a>
+@endif
 @if (auth()->user()->hasPermission('share-transaction.view'))
     <a href="{{ route('share-transactions.index') }}"
        class="
@@ -217,7 +229,25 @@
         Share Transactions
     </a>
 @endif
-                {{-- Staff --}}
+@if (
+    auth()->user()->isAdmin() ||
+    (
+        auth()->user()->isStaff() &&
+        auth()->user()->hasPermission('share-transfer.view')
+    ) || auth()->user()->isShareholder()
+)
+    <a href="{{ route('share-transfers.index') }}"
+       class="
+            block rounded-md px-4 py-2.5 text-sm
+            {{ request()->routeIs('share-transfers.*')
+                ? 'bg-gray-800 text-white'
+                : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+            }}
+       ">
+        Share Transfers
+    </a>
+@endif
+                {{-- Administration --}}
                 @if (auth()->user()->isAdmin())
 
                     <div class="pt-4">
@@ -226,58 +256,88 @@
                             Administration
                         </div>
 
-                        <a href="{{ route('staff.index') }}"
-                           class="
-                                block rounded-md px-4 py-2.5 text-sm
-                                {{ request()->routeIs('staff.*')
-                                    ? 'bg-gray-800 text-white'
-                                    : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                                }}
-                           ">
-                            Staff
-                        </a>
-                            <a href="{{ route('staff-permissions.index') }}"
-   class="
-        block rounded-md px-4 py-2.5 text-sm
-        {{ request()->routeIs('staff-permissions.*')
-            ? 'bg-gray-800 text-white'
-            : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-        }}
-   ">
-    Staff Permissions
-</a>
+                        <details
+                            class="group"
+                            @if (
+                                request()->routeIs('users.*') ||
+                                request()->routeIs('staff.*') ||
+                                request()->routeIs('staff-permissions.*') ||
+                                request()->routeIs('company-info.*') ||
+                                request()->routeIs('company-links.*')
+                            )
+                                open
+                            @endif
+                        >
+                            <summary
+                                class="
+                                    flex cursor-pointer list-none items-center justify-between
+                                    rounded-md px-4 py-2.5 text-sm
+                                    text-gray-300 hover:bg-gray-800 hover:text-white
+                                "
+                            >
+                                <span>Admin</span>
+                                <span class="text-xs transition-transform group-open:rotate-180">▼</span>
+                            </summary>
 
-<a href="{{ route('company-info.edit') }}"
-   class="
-        block rounded-md px-4 py-2.5 text-sm
-        {{ request()->routeIs('company-info.*')
-            ? 'bg-gray-800 text-white'
-            : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-        }}
-   ">
-    Company Info
-</a>
+                            <div class="mt-1 space-y-1 pl-3">
 
-<a href="{{ route('company-links.index') }}"
-   class="
-        block rounded-md px-4 py-2.5 text-sm
-        {{ request()->routeIs('company-links.*')
-            ? 'bg-gray-800 text-white'
-            : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-        }}
-   ">
-    Company Links
-</a>
-                        <a href="{{ route('staff-permissions.index') }}"
-                           class="
-                                block rounded-md px-4 py-2.5 text-sm
-                                {{ request()->routeIs('staff-permissions.*')
-                                    ? 'bg-gray-800 text-white'
-                                    : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                                }}
-                           ">
-                            Staff Permissions
-                        </a>
+                                <a href="{{ route('users.index') }}"
+                                   class="
+                                        block rounded-md px-4 py-2 text-sm
+                                        {{ request()->routeIs('users.*')
+                                            ? 'bg-gray-800 text-white'
+                                            : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                                        }}
+                                   ">
+                                    Users
+                                </a>
+
+                                <a href="{{ route('staff.index') }}"
+                                   class="
+                                        block rounded-md px-4 py-2 text-sm
+                                        {{ request()->routeIs('staff.*')
+                                            ? 'bg-gray-800 text-white'
+                                            : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                                        }}
+                                   ">
+                                    Staff
+                                </a>
+
+                                <a href="{{ route('staff-permissions.index') }}"
+                                   class="
+                                        block rounded-md px-4 py-2 text-sm
+                                        {{ request()->routeIs('staff-permissions.*')
+                                            ? 'bg-gray-800 text-white'
+                                            : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                                        }}
+                                   ">
+                                    Staff Permissions
+                                </a>
+
+                                <a href="{{ route('company-info.edit') }}"
+                                   class="
+                                        block rounded-md px-4 py-2 text-sm
+                                        {{ request()->routeIs('company-info.*')
+                                            ? 'bg-gray-800 text-white'
+                                            : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                                        }}
+                                   ">
+                                    Company Info
+                                </a>
+
+                                <a href="{{ route('company-links.index') }}"
+                                   class="
+                                        block rounded-md px-4 py-2 text-sm
+                                        {{ request()->routeIs('company-links.*')
+                                            ? 'bg-gray-800 text-white'
+                                            : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                                        }}
+                                   ">
+                                    Company Links
+                                </a>
+
+                            </div>
+                        </details>
 
                     </div>
 

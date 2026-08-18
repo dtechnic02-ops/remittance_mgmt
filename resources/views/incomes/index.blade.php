@@ -5,10 +5,29 @@
                 Income
             </h2>
 
-            <a href="{{ route('incomes.create') }}"
-               class="px-4 py-2 bg-gray-800 text-white rounded-md">
-                + New Income
-            </a>
+           <div class="flex items-center gap-2">
+
+    @if (
+        auth()->user()->isAdmin() ||
+        auth()->user()->hasPermission('income-category.view')
+    )
+        <a href="{{ route('income-categories.index') }}"
+           class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50">
+            Income Categories
+        </a>
+    @endif
+
+    @if (
+        auth()->user()->isAdmin() ||
+        auth()->user()->hasPermission('income.create')
+    )
+        <a href="{{ route('incomes.create') }}"
+           class="px-4 py-2 bg-gray-800 text-white rounded-md">
+            + New Income
+        </a>
+    @endif
+
+</div>
         </div>
     </x-slot>
 

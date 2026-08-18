@@ -6,6 +6,7 @@ use App\Models\Account;
 use App\Models\Income;
 use App\Models\IncomeCategory;
 use App\Services\IncomeService;
+use App\Services\FinancialDateService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -131,6 +132,11 @@ class IncomeController extends Controller
                 'max:5120',
             ],
         ]);
+
+        $validated = array_replace(
+            $validated,
+            app(FinancialDateService::class)->fromEnglishDate($validated['date_ad'])
+        );
 
         $category = IncomeCategory::query()
             ->whereKey($validated['income_category_id'])

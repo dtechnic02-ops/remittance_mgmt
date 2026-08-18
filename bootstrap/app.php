@@ -4,6 +4,7 @@ use App\Http\Middleware\AdminMiddleware;
 use App\Http\Middleware\ShareholderMiddleware;
 use App\Http\Middleware\StaffMiddleware;
 use App\Http\Middleware\RequirePermission;
+use App\Http\Middleware\EnsureUserIsActive;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -17,6 +18,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->appendToGroup('web', EnsureUserIsActive::class);
+
         $middleware->alias([
             'admin' => AdminMiddleware::class,
             'staff' => StaffMiddleware::class,

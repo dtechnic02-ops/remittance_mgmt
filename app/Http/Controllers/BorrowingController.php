@@ -6,6 +6,7 @@ use App\Models\Account;
 use App\Models\Borrowing;
 use App\Models\Lender;
 use App\Services\BorrowingService;
+use App\Services\FinancialDateService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -145,6 +146,11 @@ class BorrowingController extends Controller
                 'string',
             ],
         ]);
+
+        $validated = array_replace(
+            $validated,
+            app(FinancialDateService::class)->fromEnglishDate($validated['date_ad'])
+        );
 
         $lender = Lender::query()
             ->whereKey($validated['lender_id'])

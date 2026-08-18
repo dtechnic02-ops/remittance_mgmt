@@ -6,6 +6,7 @@ use App\Models\Account;
 use App\Models\Customer;
 use App\Models\RemittanceTransaction;
 use App\Services\RemittanceTransactionService;
+use App\Services\FinancialDateService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -155,6 +156,11 @@ class RemittanceTransactionController extends Controller
                 'max:5120',
             ],
         ]);
+
+        $validated = array_replace(
+            $validated,
+            app(FinancialDateService::class)->fromEnglishDate($validated['date_ad'])
+        );
 
         $customer = Customer::query()
             ->whereKey($validated['customer_id'])

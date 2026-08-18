@@ -84,11 +84,8 @@ class ShareTransactionService
                 }
             }
 
-            $transactionNumber =
-                $this->nextTransactionNumber();
-
             $transaction = ShareTransaction::create([
-                'transaction_number' => $transactionNumber,
+                'transaction_number' => TransactionNumberService::temporary(),
                 'transaction_type' => $transactionType,
                 'shareholder_id' => $shareholder->id,
                 'account_id' => $account->id,
@@ -104,6 +101,9 @@ class ShareTransactionService
                 'status' => 'active',
                 'created_by' => $data['created_by'],
             ]);
+
+            $transaction->transaction_number = TransactionNumberService::fromId('SHR-', $transaction->id);
+            $transaction->save();
 
             /*
              * BUY
@@ -201,6 +201,12 @@ class ShareTransactionService
             $transaction = ShareTransaction::query()
                 ->lockForUpdate()
                 ->findOrFail($transaction->id);
+
+            if ($transaction->transaction_type === ShareTransaction::TYPE_TRANSFER) {
+                throw new RuntimeException(
+                    'Share transfers cannot be cancelled. Contact the administrator if a correction is required.'
+                );
+            }
 
             if ($transaction->status === 'cancelled') {
                 throw new RuntimeException(
@@ -312,17 +318,4 @@ class ShareTransactionService
         });
     }
 
-    private function nextTransactionNumber(): string
-    {
-        $lastId = (int) ShareTransaction::query()
-            ->lockForUpdate()
-            ->max('id');
-
-        return 'SHR-'.str_pad(
-            (string) ($lastId + 1),
-            6,
-            '0',
-            STR_PAD_LEFT
-        );
-    }
 }

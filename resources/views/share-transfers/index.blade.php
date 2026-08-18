@@ -3,18 +3,20 @@
         <div class="flex items-center justify-between">
             <div>
                 <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                    Share Transactions
+                    Share Transfers
                 </h2>
 
                 <p class="mt-1 text-sm text-gray-500">
-                    Buy Kitta / Withdraw Share
+                    Shareholder to Shareholder Kitta Transfer
                 </p>
             </div>
 
-            <a href="{{ route('share-transactions.create') }}"
-               class="px-4 py-2 bg-gray-800 text-white rounded-md">
-                + New Share Transaction
-            </a>
+            @if ($canCreate)
+                <a href="{{ route('share-transfers.create') }}"
+                   class="px-4 py-2 bg-gray-800 text-white rounded-md">
+                    + New Share Transfer
+                </a>
+            @endif
         </div>
     </x-slot>
 
@@ -29,34 +31,6 @@
 
             <div class="bg-white shadow-sm sm:rounded-lg">
 
-                {{-- Search --}}
-                <div class="p-6 border-b">
-                    <form method="GET"
-                          action="{{ route('share-transactions.index') }}"
-                          class="flex flex-col md:flex-row gap-3">
-
-                        <input type="text"
-                               name="search"
-                               value="{{ $search }}"
-                               placeholder="Search transaction, shareholder, account or reference..."
-                               class="w-full md:flex-1 rounded-md border-gray-300 shadow-sm">
-
-                        <button type="submit"
-                                class="px-5 py-2 bg-gray-800 text-white rounded-md">
-                            Search
-                        </button>
-
-                        @if ($search !== '')
-                            <a href="{{ route('share-transactions.index') }}"
-                               class="px-5 py-2 border border-gray-300 rounded-md text-center">
-                                Clear
-                            </a>
-                        @endif
-
-                    </form>
-                </div>
-
-                {{-- Table --}}
                 <div class="p-6 overflow-x-auto">
 
                     <table class="min-w-full border-collapse">
@@ -69,19 +43,15 @@
                                 </th>
 
                                 <th class="px-4 py-3">
-                                    Type
-                                </th>
-
-                                <th class="px-4 py-3">
                                     Date
                                 </th>
 
                                 <th class="px-4 py-3">
-                                    Shareholder
+                                    From Shareholder
                                 </th>
 
                                 <th class="px-4 py-3">
-                                    Account
+                                    To Shareholder
                                 </th>
 
                                 <th class="px-4 py-3 text-right">
@@ -93,15 +63,19 @@
                                 </th>
 
                                 <th class="px-4 py-3 text-right">
-                                    Total Amount
+                                    Share Value
+                                </th>
+
+                                <th class="px-4 py-3">
+                                    Reference
                                 </th>
 
                                 <th class="px-4 py-3">
                                     Status
                                 </th>
 
-                                <th class="px-4 py-3 text-right">
-                                    Action
+                                <th class="px-4 py-3">
+                                    Created By
                                 </th>
 
                             </tr>
@@ -116,25 +90,12 @@
                                     {{-- Transaction --}}
                                     <td class="px-4 py-3 font-semibold whitespace-nowrap">
                                         {{ $transaction->transaction_number }}
-                                    </td>
 
-                                    {{-- Type --}}
-                                    <td class="px-4 py-3 whitespace-nowrap">
-
-                                        @if ($transaction->transaction_type === 'buy')
-
-                                            <span class="inline-flex rounded-md bg-blue-100 px-2.5 py-1 text-xs font-bold text-blue-700">
-                                                BUY
+                                        <div class="mt-1">
+                                            <span class="inline-flex rounded-md bg-purple-100 px-2.5 py-1 text-xs font-bold text-purple-700">
+                                                TRANSFER
                                             </span>
-
-                                        @else
-
-                                            <span class="inline-flex rounded-md bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700">
-                                                WITHDRAW
-                                            </span>
-
-                                        @endif
-
+                                        </div>
                                     </td>
 
                                     {{-- Date --}}
@@ -146,36 +107,40 @@
                                             {{ $transaction->date_bs }}
                                         </div>
 
-                                    </td>
-
-                                    {{-- Shareholder --}}
-                                    <td class="px-4 py-3">
-
-                                        <div class="font-medium">
-                                            {{ $transaction->shareholder->name }}
-                                        </div>
-
-                                        <div class="text-xs text-gray-500">
-                                            {{ $transaction->shareholder->code }}
+                                        <div class="text-xs text-gray-400">
+                                            FY {{ $transaction->financial_year }}
                                         </div>
 
                                     </td>
 
-                                    {{-- Account --}}
+                                    {{-- From --}}
                                     <td class="px-4 py-3">
 
                                         <div class="font-medium">
-                                            {{ $transaction->account?->name ?? '-' }}
+                                            {{ $transaction->shareholder?->name ?? '-' }}
                                         </div>
 
                                         <div class="text-xs text-gray-500">
-                                           {{ $transaction->account?->code ?? '-' }}
+                                            {{ $transaction->shareholder?->code ?? '-' }}
+                                        </div>
+
+                                    </td>
+
+                                    {{-- To --}}
+                                    <td class="px-4 py-3">
+
+                                        <div class="font-medium">
+                                            {{ $transaction->toShareholder?->name ?? '-' }}
+                                        </div>
+
+                                        <div class="text-xs text-gray-500">
+                                            {{ $transaction->toShareholder?->code ?? '-' }}
                                         </div>
 
                                     </td>
 
                                     {{-- Kitta --}}
-                                    <td class="px-4 py-3 text-right font-semibold">
+                                    <td class="px-4 py-3 text-right font-semibold whitespace-nowrap">
                                         {{ number_format($transaction->kitta) }}
                                     </td>
 
@@ -184,23 +149,14 @@
                                         {{ number_format($transaction->per_kitta_value) }}
                                     </td>
 
-                                    {{-- Total --}}
+                                    {{-- Share Value --}}
                                     <td class="px-4 py-3 text-right font-semibold whitespace-nowrap">
+                                        {{ number_format($transaction->total_amount) }}
+                                    </td>
 
-                                        @if ($transaction->transaction_type === 'buy')
-
-                                            <span class="text-green-700">
-                                                +{{ number_format($transaction->total_amount) }}
-                                            </span>
-
-                                        @else
-
-                                            <span class="text-red-700">
-                                                -{{ number_format($transaction->total_amount) }}
-                                            </span>
-
-                                        @endif
-
+                                    {{-- Reference --}}
+                                    <td class="px-4 py-3">
+                                        {{ $transaction->reference ?: '-' }}
                                     </td>
 
                                     {{-- Status --}}
@@ -222,13 +178,28 @@
 
                                     </td>
 
-                                    {{-- Action --}}
-                                    <td class="px-4 py-3 text-right whitespace-nowrap">
+                                    {{-- Created By --}}
+                                    <td class="px-4 py-3 whitespace-nowrap">
 
-                                        <a href="{{ route('share-transactions.show', $transaction) }}"
-                                           class="text-blue-600 hover:underline">
-                                            View
-                                        </a>
+                                        {{ $transaction->creator?->name ?? '-' }}
+
+                                        @if ($transaction->note)
+                                            <div class="mt-1 text-xs text-gray-500"
+                                                 title="{{ $transaction->note }}">
+                                                Note available
+                                            </div>
+                                        @endif
+
+                                        @if ($transaction->attachment)
+                                            <div class="mt-2">
+                                                <a href="{{ route('share-transfers.attachment', $transaction) }}"
+                                                   target="_blank"
+                                                   rel="noopener noreferrer"
+                                                   class="text-xs font-medium text-blue-600 hover:underline">
+                                                    View attachment
+                                                </a>
+                                            </div>
+                                        @endif
 
                                     </td>
 
@@ -239,7 +210,7 @@
                                 <tr>
                                     <td colspan="10"
                                         class="px-4 py-10 text-center text-gray-500">
-                                        No share transactions found.
+                                        No share transfers found.
                                     </td>
                                 </tr>
 

@@ -32,7 +32,22 @@ class StaffDashboardFinancialTest extends TestCase
         $staffResponse = $this->actingAs($staff)->get(route('staff.dashboard'))->assertOk();
         $staffSummary = $staffResponse->viewData('summary');
 
-        $this->assertSame($adminSummary, $staffSummary);
+        $this->assertSame(
+    $adminSummary,
+    collect($staffSummary)
+        ->except('net_amount')
+        ->all()
+);
+
+$this->assertSame(
+    $staffSummary['available'] + $staffSummary['remittance'],
+    $staffSummary['net_amount']
+);
+
+$this->assertSame(
+    81000,
+    $staffSummary['net_amount']
+);
         $this->assertSame(50000, $staffSummary['share_capital']);
         $this->assertSame(60000, $staffSummary['cash']);
         $this->assertSame(25000, $staffSummary['bank']);

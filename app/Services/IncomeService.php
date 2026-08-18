@@ -37,10 +37,8 @@ class IncomeService
                 );
             }
 
-            $incomeNumber = $this->nextIncomeNumber();
-
             $income = Income::create([
-                'income_number' => $incomeNumber,
+                'income_number' => TransactionNumberService::temporary(),
                 'income_category_id' => $data['income_category_id'],
                 'account_id' => $account->id,
                 'date_ad' => $data['date_ad'],
@@ -53,6 +51,9 @@ class IncomeService
                 'status' => 'active',
                 'created_by' => $data['created_by'],
             ]);
+
+            $income->income_number = TransactionNumberService::fromId('INC-', $income->id);
+            $income->save();
 
             $this->ledgerService->post([
                 'account_id' => $account->id,
@@ -133,17 +134,4 @@ class IncomeService
         });
     }
 
-    private function nextIncomeNumber(): string
-    {
-        $lastId = (int) Income::query()
-            ->lockForUpdate()
-            ->max('id');
-
-        return 'INC-'.str_pad(
-            (string) ($lastId + 1),
-            6,
-            '0',
-            STR_PAD_LEFT
-        );
-    }
 }

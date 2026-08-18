@@ -70,8 +70,6 @@ class RemittanceTransactionService
                 );
             }
 
-            $transactionNumber = $this->nextTransactionNumber();
-
             /*
             |--------------------------------------------------------------------------
             | Customer Cash
@@ -90,7 +88,7 @@ class RemittanceTransactionService
                 : $principal - $serviceCharge;
 
             $transaction = RemittanceTransaction::create([
-                'transaction_number' => $transactionNumber,
+                'transaction_number' => TransactionNumberService::temporary(),
                 'direction' => $direction,
                 'customer_id' => $data['customer_id'],
                 'provider_account_id' => $providerAccount->id,
@@ -112,6 +110,9 @@ class RemittanceTransactionService
                 'status' => 'active',
                 'created_by' => $data['created_by'],
             ]);
+
+            $transaction->transaction_number = TransactionNumberService::fromId('REM-', $transaction->id);
+            $transaction->save();
 
             $commonLedgerData = [
                 'transaction_type' => 'remittance',
@@ -161,15 +162,14 @@ class RemittanceTransactionService
                     'amount' => $principal,
                     'component' => 'principal',
                 ]);
-            } else {
+                       } else {
                 /*
                 |--------------------------------------------------------------------------
                 | RECEIVE
                 |--------------------------------------------------------------------------
                 |
                 | Provider + Principal
-                | Cash     - Principal
-                | Cash     + Service Charge
+                | Cash     - (Principal - Service Charge)
                 |
                 | Net Cash decrease:
                 | Principal - Service Charge
@@ -184,30 +184,22 @@ class RemittanceTransactionService
                     'component' => 'principal',
                 ]);
 
-                $this->ledgerService->post([
-                    ...$commonLedgerData,
-                    'account_id' => $cashAccount->id,
-                    'direction' => 'decrease',
-                    'amount' => $principal,
-                    'component' => 'principal',
-                ]);
-
-                if ($serviceCharge > 0) {
+                if ($customerCash > 0) {
                     $this->ledgerService->post([
                         ...$commonLedgerData,
                         'account_id' => $cashAccount->id,
-                        'direction' => 'increase',
-                        'amount' => $serviceCharge,
-                        'component' => 'service_charge',
+                        'direction' => 'decrease',
+                        'amount' => $customerCash,
+                        'component' => 'principal',
                     ]);
                 }
             }
-
             return $transaction->fresh();
         });
     }
 
     public function cancel(
+
         RemittanceTransaction $transaction,
         int $userId,
         string $reason
@@ -267,17 +259,4 @@ class RemittanceTransactionService
         });
     }
 
-    private function nextTransactionNumber(): string
-    {
-        $lastId = (int) RemittanceTransaction::query()
-            ->lockForUpdate()
-            ->max('id');
-
-        return 'REM-'.str_pad(
-            (string) ($lastId + 1),
-            6,
-            '0',
-            STR_PAD_LEFT
-        );
-    }
 }

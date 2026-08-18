@@ -11,17 +11,26 @@
                 </p>
             </div>
 
-            <div class="flex gap-3">
-                <a href="{{ route('shareholders.edit', $shareholder) }}"
-                   class="px-4 py-2 bg-gray-800 text-white rounded-md">
-                    Edit
-                </a>
+     <div class="flex gap-3">
 
-                <a href="{{ route('shareholders.index') }}"
-                   class="px-4 py-2 border border-gray-300 rounded-md text-gray-700">
-                    Back
-                </a>
-            </div>
+    @if (auth()->user()->isAdmin())
+        <a href="{{ route('shareholder-accounts.edit', $shareholder) }}"
+           class="px-4 py-2 bg-blue-600 text-white rounded-md">
+            Login Account
+        </a>
+    @endif
+
+    <a href="{{ route('shareholders.edit', $shareholder) }}"
+       class="px-4 py-2 bg-gray-800 text-white rounded-md">
+        Edit
+    </a>
+
+    <a href="{{ route('shareholders.index') }}"
+       class="px-4 py-2 border border-gray-300 rounded-md text-gray-700">
+        Back
+    </a>
+
+</div>
         </div>
     </x-slot>
 

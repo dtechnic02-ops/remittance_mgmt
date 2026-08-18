@@ -86,7 +86,7 @@ class BorrowingService
 
             $transaction = Borrowing::create([
                 'transaction_number' =>
-                    $this->nextTransactionNumber(),
+                    TransactionNumberService::temporary(),
 
                 'transaction_type' =>
                     $transactionType,
@@ -124,6 +124,9 @@ class BorrowingService
                 'created_by' =>
                     $data['created_by'],
             ]);
+
+            $transaction->transaction_number = TransactionNumberService::fromId('BOR-', $transaction->id);
+            $transaction->save();
 
             /*
              * BORROW
@@ -371,17 +374,4 @@ class BorrowingService
         return $borrowed - $repaid;
     }
 
-    private function nextTransactionNumber(): string
-    {
-        $lastId = (int) Borrowing::query()
-            ->lockForUpdate()
-            ->max('id');
-
-        return 'BOR-'.str_pad(
-            (string) ($lastId + 1),
-            6,
-            '0',
-            STR_PAD_LEFT
-        );
-    }
 }

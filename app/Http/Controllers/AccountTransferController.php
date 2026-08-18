@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Account;
 use App\Models\AccountTransfer;
 use App\Services\AccountTransferService;
+use App\Services\FinancialDateService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -117,6 +118,11 @@ class AccountTransferController extends Controller
                 'string',
             ],
         ]);
+
+        $validated = array_replace(
+            $validated,
+            app(FinancialDateService::class)->fromEnglishDate($validated['date_ad'])
+        );
 
         $fromAccount = Account::query()
             ->whereKey($validated['from_account_id'])

@@ -83,6 +83,30 @@ class PrivateFileController extends Controller
         return $this->serve($shareTransaction->attachment);
     }
 
+    public function shareTransfer(Request $request, ShareTransaction $shareTransfer): StreamedResponse
+    {
+        abort_unless(
+            $shareTransfer->transaction_type === ShareTransaction::TYPE_TRANSFER,
+            404
+        );
+
+        $user = $request->user();
+        $authorized = $user->isAdmin()
+            || ($user->isStaff() && $user->hasPermission('share-transfer.view'));
+
+        if ($user->isShareholder()) {
+            $shareholderId = $user->shareholder?->id;
+            $authorized = $shareholderId && (
+                (int) $shareTransfer->shareholder_id === (int) $shareholderId
+                || (int) $shareTransfer->to_shareholder_id === (int) $shareholderId
+            );
+        }
+
+        abort_unless($authorized, 403);
+
+        return $this->serve($shareTransfer->attachment);
+    }
+
     public function borrowing(Borrowing $borrowing): StreamedResponse
     {
         return $this->serve($borrowing->attachment);

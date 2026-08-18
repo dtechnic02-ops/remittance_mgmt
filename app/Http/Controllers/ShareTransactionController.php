@@ -6,6 +6,7 @@ use App\Models\Account;
 use App\Models\Shareholder;
 use App\Models\ShareTransaction;
 use App\Services\ShareTransactionService;
+use App\Services\FinancialDateService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -28,6 +29,10 @@ class ShareTransactionController extends Controller
                 'account',
                 'creator',
                 'canceller',
+            ])
+            ->whereIn('transaction_type', [
+                ShareTransaction::TYPE_BUY,
+                ShareTransaction::TYPE_WITHDRAW,
             ])
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($query) use ($search) {
@@ -141,6 +146,11 @@ class ShareTransactionController extends Controller
             ],
         ]);
 
+        $validated = array_replace(
+            $validated,
+            app(FinancialDateService::class)->fromEnglishDate($validated['date_ad'])
+        );
+
         $shareholder = Shareholder::query()
             ->whereKey($validated['shareholder_id'])
             ->where('is_active', true)
@@ -196,6 +206,12 @@ class ShareTransactionController extends Controller
     {
         $this->ensureAdminOrStaff();
 
+        abort_if(
+            $shareTransaction->transaction_type === ShareTransaction::TYPE_TRANSFER,
+            404,
+            'Share transfers are available from the Share Transfers page.'
+        );
+
         $shareTransaction->load([
             'shareholder',
             'account',
@@ -223,6 +239,12 @@ class ShareTransactionController extends Controller
             ),
             403
         );
+
+        if ($shareTransaction->transaction_type === ShareTransaction::TYPE_TRANSFER) {
+            return back()->withErrors([
+                'transaction' => 'Share transfers cannot be cancelled. Contact the administrator if a correction is required.',
+            ]);
+        }
 
         $validated = $request->validate([
             'cancellation_reason' => [

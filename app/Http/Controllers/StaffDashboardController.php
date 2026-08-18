@@ -73,6 +73,9 @@ class StaffDashboardController extends Controller
             'bank' => $bank,
             'available' => $cash + $bank,
             'remittance' => (int) ($accountBalances[Account::TYPE_REMITTANCE] ?? 0),
+            'net_amount' =>
+    ($cash + $bank)
+    + (int) ($accountBalances[Account::TYPE_REMITTANCE] ?? 0),
             'income' => $income,
             'commission' => $commission,
             'expense' => $expense,
