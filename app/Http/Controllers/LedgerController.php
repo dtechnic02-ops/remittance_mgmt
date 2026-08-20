@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Account;
 use App\Models\LedgerEntry;
+use App\Services\FinancialDateService;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class LedgerController extends Controller
 {
@@ -13,126 +13,312 @@ class LedgerController extends Controller
     {
         $this->ensureAdminOrStaff();
 
-        $validated = $request->validate([
-            'account_id' => [
-                'nullable',
-                'integer',
-                'exists:accounts,id',
-            ],
-            'transaction_type' => [
-                'nullable',
-                'string',
-                Rule::in([
-                    'remittance',
-                    'account_transfer',
-                ]),
-            ],
-            'date_from' => [
-                'nullable',
-                'date',
-            ],
-            'date_to' => [
-                'nullable',
-                'date',
-            ],
-            'search' => [
-                'nullable',
-                'string',
-                'max:100',
-            ],
-        ]);
+        /*
+        |--------------------------------------------------------------------------
+        | Filters
+        |--------------------------------------------------------------------------
+        */
 
-        $accountId = $validated['account_id'] ?? null;
-        $transactionType = $validated['transaction_type'] ?? null;
-        $dateFrom = $validated['date_from'] ?? null;
-        $dateTo = $validated['date_to'] ?? null;
-        $search = trim((string) ($validated['search'] ?? ''));
+        $accountId = $request->get('account_id');
+
+        $transactionType = trim(
+            (string) $request->get(
+                'transaction_type',
+                ''
+            )
+        );
+
+        $status = strtolower(
+            trim(
+                (string) $request->get(
+                    'status',
+                    'posted'
+                )
+            )
+        );
+
+        if (! in_array(
+            $status,
+            [
+                'posted',
+                'reversal',
+                'all',
+            ],
+            true
+        )) {
+            $status = 'posted';
+        }
+
+        $search = trim(
+            (string) $request->get(
+                'search',
+                ''
+            )
+        );
+
+        $dateFrom = trim(
+            (string) $request->get(
+                'date_from',
+                ''
+            )
+        );
+
+        $dateTo = trim(
+            (string) $request->get(
+                'date_to',
+                ''
+            )
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Current Financial Year
+        |--------------------------------------------------------------------------
+        */
+
+        $currentFinancialYear =
+            app(FinancialDateService::class)
+                ->fromEnglishDate(
+                    now()->toDateString()
+                )['financial_year'];
+
+        $financialYear = trim(
+            (string) $request->get(
+                'financial_year',
+                $currentFinancialYear
+            )
+        );
+
+        if ($financialYear === '') {
+            $financialYear =
+                $currentFinancialYear;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Accounts
+        |--------------------------------------------------------------------------
+        */
 
         $accounts = Account::query()
             ->where('is_active', true)
             ->orderBy('name')
             ->get();
 
-        $entries = LedgerEntry::query()
-            ->with([
-                'account',
-                'creator',
-                'reversalOf',
-            ])
-            ->when(
-                $accountId,
-                fn ($query) =>
-                    $query->where('account_id', $accountId)
+        /*
+        |--------------------------------------------------------------------------
+        | Available Transaction Types
+        |--------------------------------------------------------------------------
+        |
+        | Read directly from ledger so every real ledger type remains available.
+        |
+        */
+
+        $transactionTypes =
+            LedgerEntry::query()
+                ->whereNotNull('transaction_type')
+                ->where(
+                    'transaction_type',
+                    '!=',
+                    ''
+                )
+                ->distinct()
+                ->orderBy('transaction_type')
+                ->pluck('transaction_type');
+
+        /*
+        |--------------------------------------------------------------------------
+        | Available Financial Years
+        |--------------------------------------------------------------------------
+        */
+
+        $financialYears =
+            LedgerEntry::query()
+                ->whereNotNull('financial_year')
+                ->where(
+                    'financial_year',
+                    '!=',
+                    ''
+                )
+                ->distinct()
+                ->orderByDesc('financial_year')
+                ->pluck('financial_year');
+
+        if (
+            ! $financialYears->contains(
+                $currentFinancialYear
             )
-            ->when(
-                $transactionType,
-                fn ($query) =>
-                    $query->where(
-                        'transaction_type',
-                        $transactionType
-                    )
-            )
-            ->when(
-                $dateFrom,
-                fn ($query) =>
-                    $query->whereDate(
-                        'date_ad',
-                        '>=',
-                        $dateFrom
-                    )
-            )
-            ->when(
-                $dateTo,
-                fn ($query) =>
-                    $query->whereDate(
-                        'date_ad',
-                        '<=',
-                        $dateTo
-                    )
-            )
-            ->when(
-                $search !== '',
-                function ($query) use ($search) {
-                    $query->where(function ($query) use ($search) {
-                        $query
-                            ->where(
-                                'transaction_number',
-                                'like',
-                                "%{$search}%"
-                            )
-                            ->orWhere(
-                                'component',
-                                'like',
-                                "%{$search}%"
-                            )
-                            ->orWhere(
-                                'note',
-                                'like',
-                                "%{$search}%"
-                            )
-                            ->orWhereHas(
-                                'account',
-                                function ($query) use ($search) {
-                                    $query
-                                        ->where(
-                                            'name',
-                                            'like',
-                                            "%{$search}%"
-                                        )
-                                        ->orWhere(
-                                            'code',
-                                            'like',
-                                            "%{$search}%"
-                                        );
-                                }
-                            );
-                    });
+        ) {
+            $financialYears->prepend(
+                $currentFinancialYear
+            );
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Ledger Query
+        |--------------------------------------------------------------------------
+        */
+
+        $query =
+            LedgerEntry::query()
+                ->with([
+                    'account',
+                    'creator',
+                    'reversalOf',
+                ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Account
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            $accountId !== null
+            && $accountId !== ''
+        ) {
+            $query->where(
+                'account_id',
+                $accountId
+            );
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Transaction Type
+        |--------------------------------------------------------------------------
+        */
+
+        if ($transactionType !== '') {
+            $query->where(
+                'transaction_type',
+                $transactionType
+            );
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Financial Year
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            strtolower($financialYear)
+            !== 'all'
+        ) {
+            $query->where(
+                'financial_year',
+                $financialYear
+            );
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Status
+        |--------------------------------------------------------------------------
+        |
+        | Posted   = normal ledger entries
+        | Reversal = reversal entries
+        | All      = complete audit history
+        |
+        */
+
+        if ($status === 'posted') {
+            $query->where(
+                'is_reversal',
+                false
+            );
+        } elseif ($status === 'reversal') {
+            $query->where(
+                'is_reversal',
+                true
+            );
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Date Range
+        |--------------------------------------------------------------------------
+        */
+
+        if ($dateFrom !== '') {
+            $query->whereDate(
+                'date_ad',
+                '>=',
+                $dateFrom
+            );
+        }
+
+        if ($dateTo !== '') {
+            $query->whereDate(
+                'date_ad',
+                '<=',
+                $dateTo
+            );
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Search
+        |--------------------------------------------------------------------------
+        */
+
+        if ($search !== '') {
+            $query->where(
+                function ($query) use (
+                    $search
+                ) {
+                    $query
+                        ->where(
+                            'transaction_number',
+                            'like',
+                            "%{$search}%"
+                        )
+                        ->orWhere(
+                            'component',
+                            'like',
+                            "%{$search}%"
+                        )
+                        ->orWhere(
+                            'note',
+                            'like',
+                            "%{$search}%"
+                        )
+                        ->orWhereHas(
+                            'account',
+                            function ($query) use (
+                                $search
+                            ) {
+                                $query
+                                    ->where(
+                                        'name',
+                                        'like',
+                                        "%{$search}%"
+                                    )
+                                    ->orWhere(
+                                        'code',
+                                        'like',
+                                        "%{$search}%"
+                                    );
+                            }
+                        );
                 }
-            )
-            ->orderByDesc('date_ad')
-            ->orderByDesc('id')
-            ->paginate(50)
-            ->withQueryString();
+            );
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Results
+        |--------------------------------------------------------------------------
+        */
+
+        $entries =
+            $query
+                ->orderByDesc('date_ad')
+                ->orderByDesc('id')
+                ->paginate(50)
+                ->withQueryString();
 
         return view(
             'ledger.index',
@@ -141,6 +327,11 @@ class LedgerController extends Controller
                 'accounts',
                 'accountId',
                 'transactionType',
+                'transactionTypes',
+                'status',
+                'financialYear',
+                'financialYears',
+                'currentFinancialYear',
                 'dateFrom',
                 'dateTo',
                 'search'
@@ -153,8 +344,10 @@ class LedgerController extends Controller
         $user = auth()->user();
 
         abort_unless(
-            $user &&
-            ($user->isAdmin() || $user->isStaff()),
+            $user
+            && (
+                $user->canAccessBusinessData()
+            ),
             403
         );
     }

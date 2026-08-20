@@ -21,36 +21,120 @@ class ExpenseController extends Controller
     {
         $this->ensureAdminOrStaff();
 
-        $search = trim((string) $request->get('search'));
+        $search = trim((string) $request->get('search', ''));
+        $categoryId = trim((string) $request->get('expense_category_id', ''));
+        $accountId = trim((string) $request->get('account_id', ''));
+        $status = strtolower(trim((string) $request->get('status', 'active')));
 
-        $expenses = Expense::query()
+        if (! in_array($status, ['active', 'cancelled', 'all'], true)) {
+            $status = 'active';
+        }
+
+        $dateFrom = trim((string) $request->get('date_from', ''));
+        $dateTo = trim((string) $request->get('date_to', ''));
+        $currentFinancialYear = app(FinancialDateService::class)
+            ->fromEnglishDate(now()->toDateString())['financial_year'];
+        $financialYear = trim((string) $request->get('financial_year', $currentFinancialYear));
+
+        if ($financialYear === '') {
+            $financialYear = $currentFinancialYear;
+        }
+
+        $categories = ExpenseCategory::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
+        $accounts = Account::query()
+            ->where('is_active', true)
+            ->where('type', '!=', Account::TYPE_FIXED_DEPOSIT)
+            ->orderBy('name')
+            ->get();
+
+        $financialYears = Expense::query()
+            ->whereNotNull('financial_year')
+            ->where('financial_year', '!=', '')
+            ->distinct()
+            ->orderByDesc('financial_year')
+            ->pluck('financial_year');
+
+        if (! $financialYears->contains($currentFinancialYear)) {
+            $financialYears->prepend($currentFinancialYear);
+        }
+
+        $query = Expense::query()
             ->with([
                 'category',
                 'account',
                 'creator',
                 'canceller',
-            ])
-            ->when($search !== '', function ($query) use ($search) {
-                $query->where(function ($query) use ($search) {
+            ]);
+
+        if ($categoryId !== '') {
+            $query->where('expense_category_id', $categoryId);
+        }
+
+        if ($accountId !== '') {
+            $query->where('account_id', $accountId);
+        }
+
+        if (strtolower($financialYear) !== 'all') {
+            $query->where('financial_year', $financialYear);
+        }
+
+        if ($status !== 'all') {
+            $query->where('status', $status);
+        }
+
+        if ($dateFrom !== '') {
+            $query->whereDate('date_ad', '>=', $dateFrom);
+        }
+
+        if ($dateTo !== '') {
+            $query->whereDate('date_ad', '<=', $dateTo);
+        }
+
+        if ($search !== '') {
+            $query->where(function ($query) use ($search) {
                     $query
                         ->where('expense_number', 'like', "%{$search}%")
                         ->orWhere('reference', 'like', "%{$search}%")
                         ->orWhere('note', 'like', "%{$search}%")
                         ->orWhereHas('category', function ($query) use ($search) {
-                            $query->where('name', 'like', "%{$search}%");
+                            $query
+                                ->where('name', 'like', "%{$search}%")
+                                ->orWhere('code', 'like', "%{$search}%");
                         })
                         ->orWhereHas('account', function ($query) use ($search) {
-                            $query->where('name', 'like', "%{$search}%");
+                            $query
+                                ->where('name', 'like', "%{$search}%")
+                                ->orWhere('code', 'like', "%{$search}%");
                         });
                 });
-            })
-            ->latest('id')
+        }
+
+        $expenses = $query
+            ->orderByDesc('date_ad')
+            ->orderByDesc('id')
             ->paginate(20)
             ->withQueryString();
 
         return view(
             'expenses.index',
-            compact('expenses', 'search')
+            compact(
+                'expenses',
+                'search',
+                'categories',
+                'categoryId',
+                'accounts',
+                'accountId',
+                'financialYear',
+                'financialYears',
+                'currentFinancialYear',
+                'status',
+                'dateFrom',
+                'dateTo'
+            )
         );
     }
 
@@ -208,6 +292,65 @@ class ExpenseController extends Controller
         );
     }
 
+    public function edit(Expense $expense)
+    {
+        $this->ensureAdminOrStaff();
+
+        abort_unless(
+            $expense->status === 'active',
+            403,
+            'Only active expense transactions can be edited.'
+        );
+
+        $expense->load([
+            'category',
+            'account',
+        ]);
+
+        return view('expenses.edit', compact('expense'));
+    }
+
+    public function update(Request $request, Expense $expense)
+    {
+        $this->ensureAdminOrStaff();
+
+        if ($expense->status !== 'active') {
+            return back()->withErrors([
+                'transaction' => 'Only active expense transactions can be edited.',
+            ]);
+        }
+
+        $validated = $request->validate([
+            'date_ad' => [
+                'required',
+                'date',
+            ],
+            'note' => [
+                'nullable',
+                'string',
+                'max:2000',
+            ],
+        ]);
+
+        $validated = array_replace(
+            $validated,
+            app(FinancialDateService::class)
+                ->fromEnglishDate($validated['date_ad'])
+        );
+
+        try {
+            $expense = $this->service->updateMetadata($expense, $validated);
+        } catch (\RuntimeException $exception) {
+            return back()
+                ->withInput()
+                ->withErrors(['transaction' => $exception->getMessage()]);
+        }
+
+        return redirect()
+            ->route('expenses.show', $expense)
+            ->with('success', 'Expense updated successfully.');
+    }
+
     public function cancel(
         Request $request,
         Expense $expense
@@ -291,7 +434,7 @@ class ExpenseController extends Controller
 
         abort_unless(
             $user &&
-            ($user->isAdmin() || $user->isStaff()),
+            $user->canAccessBusinessData(),
             403
         );
     }

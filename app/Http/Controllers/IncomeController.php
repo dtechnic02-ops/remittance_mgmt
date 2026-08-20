@@ -16,44 +16,332 @@ class IncomeController extends Controller
         private readonly IncomeService $service
     ) {
     }
+public function index(Request $request)
+{
+    $this->ensureAdminOrStaff();
 
-    public function index(Request $request)
-    {
-        $this->ensureAdminOrStaff();
+    /*
+    |--------------------------------------------------------------------------
+    | Filters
+    |--------------------------------------------------------------------------
+    */
 
-        $search = trim((string) $request->get('search'));
+    $search = trim(
+        (string) $request->get(
+            'search',
+            ''
+        )
+    );
 
-        $incomes = Income::query()
+    $categoryId = trim(
+        (string) $request->get(
+            'income_category_id',
+            ''
+        )
+    );
+
+    $accountId = trim(
+        (string) $request->get(
+            'account_id',
+            ''
+        )
+    );
+
+    $status = strtolower(
+        trim(
+            (string) $request->get(
+                'status',
+                'active'
+            )
+        )
+    );
+
+    if (! in_array(
+        $status,
+        [
+            'active',
+            'cancelled',
+            'all',
+        ],
+        true
+    )) {
+        $status = 'active';
+    }
+
+    $dateFrom = trim(
+        (string) $request->get(
+            'date_from',
+            ''
+        )
+    );
+
+    $dateTo = trim(
+        (string) $request->get(
+            'date_to',
+            ''
+        )
+    );
+
+    /*
+    |--------------------------------------------------------------------------
+    | Current Financial Year
+    |--------------------------------------------------------------------------
+    */
+
+    $currentFinancialYear =
+        app(FinancialDateService::class)
+            ->fromEnglishDate(
+                now()->toDateString()
+            )['financial_year'];
+
+    $financialYear = trim(
+        (string) $request->get(
+            'financial_year',
+            $currentFinancialYear
+        )
+    );
+
+    if ($financialYear === '') {
+        $financialYear =
+            $currentFinancialYear;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Filter Options
+    |--------------------------------------------------------------------------
+    */
+
+    $categories =
+        IncomeCategory::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
+    $accounts =
+        Account::query()
+            ->where('is_active', true)
+            ->where(
+                'type',
+                '!=',
+                Account::TYPE_FIXED_DEPOSIT
+            )
+            ->orderBy('name')
+            ->get();
+
+    $financialYears =
+        Income::query()
+            ->whereNotNull('financial_year')
+            ->where(
+                'financial_year',
+                '!=',
+                ''
+            )
+            ->distinct()
+            ->orderByDesc('financial_year')
+            ->pluck('financial_year');
+
+    if (
+        ! $financialYears->contains(
+            $currentFinancialYear
+        )
+    ) {
+        $financialYears->prepend(
+            $currentFinancialYear
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Income Query
+    |--------------------------------------------------------------------------
+    */
+
+    $query =
+        Income::query()
             ->with([
                 'category',
                 'account',
                 'creator',
-            ])
-            ->when($search !== '', function ($query) use ($search) {
-                $query->where(function ($query) use ($search) {
-                    $query
-                        ->where('income_number', 'like', "%{$search}%")
-                        ->orWhere('reference', 'like', "%{$search}%")
-                        ->orWhere('note', 'like', "%{$search}%")
-                        ->orWhereHas('category', function ($query) use ($search) {
-                            $query->where('name', 'like', "%{$search}%")
-                                ->orWhere('code', 'like', "%{$search}%");
-                        })
-                        ->orWhereHas('account', function ($query) use ($search) {
-                            $query->where('name', 'like', "%{$search}%")
-                                ->orWhere('code', 'like', "%{$search}%");
-                        });
-                });
-            })
-            ->latest('id')
+                'canceller',
+            ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Category
+    |--------------------------------------------------------------------------
+    */
+
+    if ($categoryId !== '') {
+        $query->where(
+            'income_category_id',
+            $categoryId
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Account
+    |--------------------------------------------------------------------------
+    */
+
+    if ($accountId !== '') {
+        $query->where(
+            'account_id',
+            $accountId
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Financial Year
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        strtolower($financialYear)
+        !== 'all'
+    ) {
+        $query->where(
+            'financial_year',
+            $financialYear
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Status
+    |--------------------------------------------------------------------------
+    */
+
+    if ($status !== 'all') {
+        $query->where(
+            'status',
+            $status
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Date Range
+    |--------------------------------------------------------------------------
+    */
+
+    if ($dateFrom !== '') {
+        $query->whereDate(
+            'date_ad',
+            '>=',
+            $dateFrom
+        );
+    }
+
+    if ($dateTo !== '') {
+        $query->whereDate(
+            'date_ad',
+            '<=',
+            $dateTo
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Search
+    |--------------------------------------------------------------------------
+    */
+
+    if ($search !== '') {
+        $query->where(
+            function ($query) use (
+                $search
+            ) {
+                $query
+                    ->where(
+                        'income_number',
+                        'like',
+                        "%{$search}%"
+                    )
+                    ->orWhere(
+                        'reference',
+                        'like',
+                        "%{$search}%"
+                    )
+                    ->orWhere(
+                        'note',
+                        'like',
+                        "%{$search}%"
+                    )
+                    ->orWhereHas(
+                        'category',
+                        function ($query) use (
+                            $search
+                        ) {
+                            $query
+                                ->where(
+                                    'name',
+                                    'like',
+                                    "%{$search}%"
+                                )
+                                ->orWhere(
+                                    'code',
+                                    'like',
+                                    "%{$search}%"
+                                );
+                        }
+                    )
+                    ->orWhereHas(
+                        'account',
+                        function ($query) use (
+                            $search
+                        ) {
+                            $query
+                                ->where(
+                                    'name',
+                                    'like',
+                                    "%{$search}%"
+                                )
+                                ->orWhere(
+                                    'code',
+                                    'like',
+                                    "%{$search}%"
+                                );
+                        }
+                    );
+            }
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Results
+    |--------------------------------------------------------------------------
+    */
+
+    $incomes =
+        $query
+            ->orderByDesc('date_ad')
+            ->orderByDesc('id')
             ->paginate(20)
             ->withQueryString();
 
-        return view(
-            'incomes.index',
-            compact('incomes', 'search')
-        );
-    }
+    return view(
+        'incomes.index',
+        compact(
+            'incomes',
+            'search',
+            'categories',
+            'categoryId',
+            'accounts',
+            'accountId',
+            'financialYear',
+            'financialYears',
+            'currentFinancialYear',
+            'status',
+            'dateFrom',
+            'dateTo'
+        )
+    );
+}
+    
 
     public function create()
     {
@@ -206,6 +494,65 @@ class IncomeController extends Controller
         );
     }
 
+    public function edit(Income $income)
+    {
+        $this->ensureAdminOrStaff();
+
+        abort_unless(
+            $income->status === 'active',
+            403,
+            'Only active income transactions can be edited.'
+        );
+
+        $income->load([
+            'category',
+            'account',
+        ]);
+
+        return view('incomes.edit', compact('income'));
+    }
+
+    public function update(Request $request, Income $income)
+    {
+        $this->ensureAdminOrStaff();
+
+        if ($income->status !== 'active') {
+            return back()->withErrors([
+                'transaction' => 'Only active income transactions can be edited.',
+            ]);
+        }
+
+        $validated = $request->validate([
+            'date_ad' => [
+                'required',
+                'date',
+            ],
+            'note' => [
+                'nullable',
+                'string',
+                'max:2000',
+            ],
+        ]);
+
+        $validated = array_replace(
+            $validated,
+            app(FinancialDateService::class)
+                ->fromEnglishDate($validated['date_ad'])
+        );
+
+        try {
+            $income = $this->service->updateMetadata($income, $validated);
+        } catch (\RuntimeException $exception) {
+            return back()
+                ->withInput()
+                ->withErrors(['transaction' => $exception->getMessage()]);
+        }
+
+        return redirect()
+            ->route('incomes.show', $income)
+            ->with('success', 'Income updated successfully.');
+    }
+
     public function cancel(
         Request $request,
         Income $income
@@ -290,7 +637,7 @@ class IncomeController extends Controller
 
         abort_unless(
             $user &&
-            ($user->isAdmin() || $user->isStaff()),
+            $user->canAccessBusinessData(),
             403
         );
     }

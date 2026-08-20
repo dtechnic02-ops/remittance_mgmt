@@ -145,4 +145,52 @@ class ExpenseService
         });
     }
 
+    public function updateMetadata(Expense $expense, array $data): Expense
+    {
+        return DB::transaction(function () use ($expense, $data) {
+            $expense = Expense::query()
+                ->lockForUpdate()
+                ->findOrFail($expense->id);
+
+            if ($expense->status !== 'active') {
+                throw new RuntimeException(
+                    'Only active expense transactions can be edited.'
+                );
+            }
+
+            $entries = LedgerEntry::query()
+                ->where('transaction_type', 'expense')
+                ->where('transaction_id', $expense->id)
+                ->where('is_reversal', false)
+                ->lockForUpdate()
+                ->get();
+
+            if ($entries->isEmpty()) {
+                throw new RuntimeException(
+                    'Original expense ledger entry was not found.'
+                );
+            }
+
+            $expense->date_ad = $data['date_ad'];
+            $expense->date_bs = $data['date_bs'];
+            $expense->financial_year = $data['financial_year'];
+            $expense->note = $data['note'] ?? null;
+            $expense->save();
+
+            foreach ($entries as $entry) {
+                $entry->date_ad = $data['date_ad'];
+                $entry->date_bs = $data['date_bs'];
+                $entry->financial_year = $data['financial_year'];
+                $entry->note = $data['note'] ?? null;
+                $entry->save();
+            }
+
+            return $expense->fresh([
+                'category',
+                'account',
+                'creator',
+            ]);
+        });
+    }
+
 }

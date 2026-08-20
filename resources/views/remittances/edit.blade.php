@@ -1,0 +1,40 @@
+<x-app-layout>
+    <x-slot name="header">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div><h2 class="text-xl font-semibold text-gray-800">Edit Remittance</h2>
+                <p class="mt-1 text-sm text-gray-500">{{ $remittance->transaction_number }}</p></div>
+            <a href="{{ route('remittances.show', $remittance) }}"
+               class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700">Back</a>
+        </div>
+    </x-slot>
+    <div class="py-6"><div class="mx-auto w-full px-4 sm:px-6 lg:px-8" style="max-width: 900px;">
+        @if ($errors->any())<div class="mb-5 rounded-lg bg-red-50 p-4 text-sm text-red-700">
+            @foreach ($errors->all() as $error)<div>{{ $error }}</div>@endforeach</div>@endif
+        <div class="overflow-hidden rounded-xl bg-white shadow-sm">
+            <div class="border-b border-gray-200 p-5"><div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                <div><div class="text-xs uppercase text-gray-500">Provider</div><div class="mt-1 font-semibold">{{ $remittance->providerAccount?->name ?? '-' }}</div></div>
+                <div><div class="text-xs uppercase text-gray-500">Cash Account</div><div class="mt-1 font-semibold">{{ $remittance->cashAccount?->name ?? '-' }}</div></div>
+                <div><div class="text-xs uppercase text-gray-500">Principal / Charge</div><div class="mt-1 font-semibold">{{ number_format($remittance->principal_amount) }} / {{ number_format($remittance->service_charge) }}</div></div>
+            </div></div>
+            <form method="POST" action="{{ route('remittances.update', $remittance) }}" class="p-5">@csrf @method('PUT')
+                <div class="space-y-5">
+                    <div><label for="date_ad" class="block text-sm font-medium text-gray-700">Date AD *</label>
+                        <input id="date_ad" type="date" name="date_ad" value="{{ old('date_ad', $remittance->date_ad?->format('Y-m-d')) }}" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <p class="mt-1 text-xs text-gray-500">Nepali Date and Financial Year will be recalculated automatically.</p></div>
+                    <div class="grid gap-4 rounded-lg bg-gray-50 p-4 sm:grid-cols-2">
+                        <div><label for="date_bs" class="text-xs font-medium uppercase text-gray-500">Date BS</label>
+                            <input id="date_bs" type="text" readonly value="{{ $remittance->date_bs }}" class="mt-1 block w-full rounded-md border-gray-300 bg-gray-100 font-semibold shadow-sm"></div>
+                        <div><label for="financial_year" class="text-xs font-medium uppercase text-gray-500">Financial Year</label>
+                            <input id="financial_year" type="text" readonly value="{{ $remittance->financial_year }}" class="mt-1 block w-full rounded-md border-gray-300 bg-gray-100 font-semibold shadow-sm"></div>
+                    </div>
+                    <div><label for="note" class="block text-sm font-medium text-gray-700">Note</label>
+                        <textarea id="note" name="note" rows="5" maxlength="2000" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">{{ old('note', $remittance->note) }}</textarea></div>
+                    <div class="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">Only <strong>Date AD</strong> and <strong>Note</strong> can be edited. All parties, accounts, amounts, direction and transaction number remain unchanged.</div>
+                    <div class="flex justify-end gap-3"><a href="{{ route('remittances.show', $remittance) }}" class="rounded-md border border-gray-300 px-5 py-2 text-sm">Cancel</a>
+                        <button type="submit" class="rounded-md bg-gray-800 px-5 py-2 text-sm font-semibold text-white">Save Changes</button></div>
+                </div>
+            </form>
+        </div>
+    </div></div>
+    <script>document.addEventListener('DOMContentLoaded',function(){const a=document.getElementById('date_ad'),b=document.getElementById('date_bs'),f=document.getElementById('financial_year');async function update(){if(!a.value){b.value='';f.value='';return;}try{const r=await fetch(`{{ route('remittances.date-convert') }}?date_ad=${encodeURIComponent(a.value)}`,{headers:{'Accept':'application/json'}});if(!r.ok)throw new Error('Date conversion failed.');const d=await r.json();b.value=d.date_bs;f.value=d.financial_year;}catch(e){b.value='';f.value='';console.error(e);}}a.addEventListener('change',update);update();});</script>
+</x-app-layout>

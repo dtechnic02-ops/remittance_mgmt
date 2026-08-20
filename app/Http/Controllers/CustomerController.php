@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Anuzpandey\LaravelNepaliDate\LaravelNepaliDate;
 use Anuzpandey\LaravelNepaliDate\Exceptions\InvalidDateException;
 use App\Models\Customer;
+use App\Models\RemittanceTransaction;
 use App\Services\CustomerDateService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,9 +20,14 @@ class CustomerController extends Controller
         $this->ensureAdminOrStaff();
 
         $search = trim((string) $request->get('search'));
+        $status = (string) $request->get('status', 'active');
+
+        if (! in_array($status, ['active', 'inactive', 'all'], true)) {
+            $status = 'active';
+        }
 
         $customers = Customer::query()
-    ->with('creator')
+            ->with('creator')
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($query) use ($search) {
                     $query->where('customer_code', 'like', "%{$search}%")
@@ -33,11 +39,13 @@ class CustomerController extends Controller
                         ->orWhere('citizenship_number', 'like', "%{$search}%");
                 });
             })
+            ->when($status === 'active', fn ($query) => $query->where('is_active', true))
+            ->when($status === 'inactive', fn ($query) => $query->where('is_active', false))
             ->orderBy('name')
             ->paginate(20)
             ->withQueryString();
 
-        return view('customers.index', compact('customers', 'search'));
+        return view('customers.index', compact('customers', 'search', 'status'));
     }
 
     public function create()
@@ -132,12 +140,20 @@ class CustomerController extends Controller
             'deactivator',
         ]);
 
-        return view('customers.show', compact('customer'));
+        $hasBusinessUsage = $this->hasBusinessUsage($customer);
+
+        return view('customers.show', compact('customer', 'hasBusinessUsage'));
     }
 
     public function edit(Customer $customer)
     {
         $this->ensureAdminOrStaff();
+
+        if (! $customer->is_active) {
+            return redirect()
+                ->route('customers.show', $customer)
+                ->with('error', 'Inactive customers cannot be edited.');
+        }
 
         $customer->load('otherDocuments');
 
@@ -150,6 +166,12 @@ class CustomerController extends Controller
     public function update(Request $request, Customer $customer)
     {
         $this->ensureAdminOrStaff();
+
+        if (! $customer->is_active) {
+            return redirect()
+                ->route('customers.show', $customer)
+                ->with('error', 'Inactive customers cannot be edited.');
+        }
 
         $validated = $this->validateCustomer($request, $customer);
 
@@ -212,13 +234,50 @@ class CustomerController extends Controller
 
     public function destroy(Customer $customer)
     {
-        $this->ensureAdmin();
+        $this->ensureAdminOrStaff();
 
-        if (! $customer->is_active) {
+        $files = DB::transaction(function () use ($customer) {
+            $customer = Customer::query()
+                ->with('otherDocuments')
+                ->lockForUpdate()
+                ->findOrFail($customer->getKey());
+
+            if ($this->hasBusinessUsage($customer)) {
+                return null;
+            }
+
+            $files = array_filter([
+                $customer->photo,
+                $customer->citizenship_front,
+                $customer->citizenship_back,
+                ...$customer->otherDocuments->pluck('file_path')->all(),
+            ]);
+
+            $customer->delete();
+
+            return $files;
+        });
+
+        if ($files === null) {
             return back()->with(
                 'error',
-                'Customer is already inactive.'
+                'This customer has transaction/history usage and cannot be permanently deleted. Deactivate the customer instead.'
             );
+        }
+
+        Storage::disk('local')->delete($files);
+
+        return redirect()
+            ->route('customers.index')
+            ->with('success', 'Unused customer permanently deleted successfully.');
+    }
+
+    public function cancel(Customer $customer)
+    {
+        $this->ensureAdminOrStaff();
+
+        if (! $customer->is_active) {
+            return back()->with('error', 'Customer is already inactive.');
         }
 
         $customer->update([
@@ -229,7 +288,7 @@ class CustomerController extends Controller
         ]);
 
         return redirect()
-            ->route('customers.index')
+            ->route('customers.show', $customer)
             ->with('success', 'Customer deactivated successfully.');
     }
 
@@ -444,21 +503,21 @@ class CustomerController extends Controller
         }
     }
 
+    private function hasBusinessUsage(Customer $customer): bool
+    {
+        return RemittanceTransaction::query()
+            ->where('customer_id', $customer->getKey())
+            ->exists();
+    }
+
     private function ensureAdminOrStaff(): void
     {
         $user = auth()->user();
 
         abort_unless(
-            $user && ($user->isAdmin() || $user->isStaff()),
+            $user && $user->canAccessBusinessData(),
             403
         );
     }
 
-    private function ensureAdmin(): void
-    {
-        abort_unless(
-            auth()->user()?->isAdmin(),
-            403
-        );
-    }
 }

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Shareholder extends Model
 {
@@ -31,11 +32,6 @@ class Shareholder extends Model
         'updated_by',
     ];
 
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(User::class);
-    }
-
     protected function casts(): array
     {
         return [
@@ -44,6 +40,11 @@ class Shareholder extends Model
             'total_investment' => 'integer',
             'is_active' => 'boolean',
         ];
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 
     public function creator(): BelongsTo
@@ -60,5 +61,34 @@ class Shareholder extends Model
             User::class,
             'updated_by'
         );
+    }
+
+    public function shareTransactions(): HasMany
+    {
+        return $this->hasMany(
+            ShareTransaction::class,
+            'shareholder_id'
+        );
+    }
+
+    public function receivedShareTransfers(): HasMany
+    {
+        return $this->hasMany(
+            ShareTransaction::class,
+            'to_shareholder_id'
+        );
+    }
+
+    public function hasFinancialHistory(): bool
+    {
+        return $this->shareTransactions()->exists()
+            || $this->receivedShareTransfers()->exists();
+    }
+
+    public function canHardDelete(): bool
+    {
+        return ! $this->hasFinancialHistory()
+            && (int) $this->kitta === 0
+            && (int) $this->total_investment === 0;
     }
 }

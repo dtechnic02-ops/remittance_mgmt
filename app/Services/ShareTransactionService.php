@@ -187,6 +187,110 @@ class ShareTransactionService
             ]);
         });
     }
+public function updateMetadata(
+    ShareTransaction $transaction,
+    array $data
+): ShareTransaction {
+    return DB::transaction(function () use (
+        $transaction,
+        $data
+    ) {
+        $transaction = ShareTransaction::query()
+            ->lockForUpdate()
+            ->findOrFail($transaction->id);
+
+        if (
+            $transaction->transaction_type
+            === ShareTransaction::TYPE_TRANSFER
+        ) {
+            throw new RuntimeException(
+                'Share transfers cannot be edited from Share Transactions.'
+            );
+        }
+
+        if ($transaction->status !== 'active') {
+            throw new RuntimeException(
+                'Only active share transactions can be edited.'
+            );
+        }
+
+        $entries = LedgerEntry::query()
+            ->where(
+                'transaction_type',
+                'share_transaction'
+            )
+            ->where(
+                'transaction_id',
+                $transaction->id
+            )
+            ->where(
+                'is_reversal',
+                false
+            )
+            ->lockForUpdate()
+            ->get();
+
+        if ($entries->isEmpty()) {
+            throw new RuntimeException(
+                'Original share ledger entry was not found.'
+            );
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Update Transaction Metadata Only
+        |--------------------------------------------------------------------------
+        |
+        | Amount, Account, Kitta, Shareholder and Type are NOT changed.
+        |
+        */
+
+        $transaction->date_ad =
+            $data['date_ad'];
+
+        $transaction->date_bs =
+            $data['date_bs'];
+
+        $transaction->financial_year =
+            $data['financial_year'];
+
+        $transaction->note =
+            $data['note'] ?? null;
+
+        $transaction->save();
+
+        /*
+        |--------------------------------------------------------------------------
+        | Keep Ledger Metadata Synchronized
+        |--------------------------------------------------------------------------
+        |
+        | Balance, amount and direction remain unchanged.
+        |
+        */
+
+        foreach ($entries as $entry) {
+            $entry->date_ad =
+                $data['date_ad'];
+
+            $entry->date_bs =
+                $data['date_bs'];
+
+            $entry->financial_year =
+                $data['financial_year'];
+
+            $entry->note =
+                $data['note'] ?? null;
+
+            $entry->save();
+        }
+
+        return $transaction->fresh([
+            'shareholder',
+            'account',
+        ]);
+    });
+}
+
 
     public function cancel(
         ShareTransaction $transaction,

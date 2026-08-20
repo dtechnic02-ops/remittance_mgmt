@@ -1,164 +1,23 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex items-center justify-between">
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                Remittances
-            </h2>
-
-            <a href="{{ route('remittances.create') }}"
-               class="px-4 py-2 bg-gray-800 text-white rounded-md">
-                + New Remittance
-            </a>
+    <x-slot name="header"><div class="flex items-center justify-between"><div><h2 class="text-xl font-semibold text-gray-800">Remittances</h2><p class="mt-1 text-sm text-gray-500">Remittance Transactions</p></div>
+        @if(auth()->user()->isAdmin() || auth()->user()->hasPermission('remittance.create'))<a href="{{ route('remittances.create') }}" class="rounded-md bg-gray-800 px-4 py-2 text-sm font-semibold text-white">+ New Remittance</a>@endif</div></x-slot>
+    <div class="py-6"><div class="mx-auto w-full px-4 sm:px-6 lg:px-8" style="max-width:1500px;">
+        @if(session('success'))<div class="mb-4 rounded-lg bg-green-50 p-4 text-sm text-green-700">{{ session('success') }}</div>@endif
+        <div class="overflow-hidden rounded-xl bg-white shadow-sm">
+            <div class="border-b border-gray-200 p-4"><form method="GET" action="{{ route('remittances.index') }}" class="flex flex-wrap items-end gap-3">
+                <div style="min-width:230px;flex:1 1 260px"><label for="search" class="mb-1 block text-xs font-medium text-gray-600">Search</label><input id="search" name="search" value="{{ $search }}" placeholder="Transaction, customer, provider..." class="w-full rounded-md border-gray-300 text-sm shadow-sm"></div>
+                <div style="width:190px"><label for="provider_account_id" class="mb-1 block text-xs font-medium text-gray-600">Provider</label><select id="provider_account_id" name="provider_account_id" class="w-full rounded-md border-gray-300 text-sm shadow-sm"><option value="">All Providers</option>@foreach($providers as $provider)<option value="{{ $provider->id }}" @selected((string)$providerAccountId===(string)$provider->id)>{{ $provider->name }} ({{ $provider->code }})</option>@endforeach</select></div>
+                <div style="width:190px"><label for="cash_account_id" class="mb-1 block text-xs font-medium text-gray-600">Account</label><select id="cash_account_id" name="cash_account_id" class="w-full rounded-md border-gray-300 text-sm shadow-sm"><option value="">All Accounts</option>@foreach($cashAccounts as $account)<option value="{{ $account->id }}" @selected((string)$cashAccountId===(string)$account->id)>{{ $account->name }} ({{ $account->code }})</option>@endforeach</select></div>
+                <div style="width:170px"><label for="financial_year" class="mb-1 block text-xs font-medium text-gray-600">Financial Year</label><select id="financial_year" name="financial_year" class="w-full rounded-md border-gray-300 text-sm shadow-sm"><option value="all" @selected(strtolower($financialYear)==='all')>All FY</option>@foreach($financialYears as $fy)<option value="{{ $fy }}" @selected($financialYear===$fy)>{{ $fy }}@if($fy===$currentFinancialYear) (Current)@endif</option>@endforeach</select></div>
+                <div style="width:145px"><label for="status" class="mb-1 block text-xs font-medium text-gray-600">Status</label><select id="status" name="status" class="w-full rounded-md border-gray-300 text-sm shadow-sm"><option value="active" @selected($status==='active')>Active</option><option value="cancelled" @selected($status==='cancelled')>Cancelled</option><option value="all" @selected($status==='all')>All</option></select></div>
+                <div style="width:160px"><label for="date_from" class="mb-1 block text-xs font-medium text-gray-600">From Date</label><input id="date_from" type="date" name="date_from" value="{{ $dateFrom }}" class="w-full rounded-md border-gray-300 text-sm shadow-sm"></div>
+                <div style="width:160px"><label for="date_to" class="mb-1 block text-xs font-medium text-gray-600">To Date</label><input id="date_to" type="date" name="date_to" value="{{ $dateTo }}" class="w-full rounded-md border-gray-300 text-sm shadow-sm"></div>
+                <button class="rounded-md bg-gray-800 px-5 py-2.5 text-sm font-semibold text-white">Filter</button><a href="{{ route('remittances.index') }}" class="rounded-md border border-gray-300 px-5 py-2.5 text-sm">Reset</a>
+            </form></div>
+            <div class="overflow-x-auto"><table class="min-w-full border-collapse"><thead class="bg-gray-50"><tr class="border-b text-left text-sm text-gray-600"><th class="px-4 py-3">Transaction</th><th class="px-4 py-3">Type</th><th class="px-4 py-3">Date</th><th class="px-4 py-3">Customer</th><th class="px-4 py-3">Provider / Account</th><th class="px-4 py-3 text-right">Principal</th><th class="px-4 py-3 text-right">Charge</th><th class="px-4 py-3 text-right">Customer Cash</th><th class="px-4 py-3">Status</th><th class="px-4 py-3 text-right">Action</th></tr></thead><tbody>
+                @forelse($transactions as $transaction)<tr class="border-b border-gray-100 hover:bg-gray-50"><td class="whitespace-nowrap px-4 py-3 font-semibold">{{ $transaction->transaction_number }}</td><td class="px-4 py-3"><span class="inline-flex rounded-md px-2.5 py-1 text-xs font-bold {{ $transaction->direction==='receive'?'bg-green-100 text-green-700':'bg-blue-100 text-blue-700' }}">{{ strtoupper($transaction->direction) }}</span></td><td class="whitespace-nowrap px-4 py-3">{{ $transaction->date_ad?->format('Y-m-d') ?? '-' }}<div class="text-xs text-gray-500">{{ $transaction->date_bs ?: '-' }}</div><div class="text-xs text-gray-400">FY {{ $transaction->financial_year ?: '-' }}</div></td><td class="px-4 py-3"><div class="font-medium">{{ $transaction->customer?->name ?? '-' }}</div><div class="text-xs text-gray-500">{{ $transaction->customer?->customer_code ?? '-' }}</div></td><td class="px-4 py-3"><div class="font-medium">{{ $transaction->providerAccount?->name ?? '-' }}</div><div class="text-xs text-gray-500">{{ $transaction->cashAccount?->name ?? '-' }}</div></td><td class="px-4 py-3 text-right">{{ number_format($transaction->principal_amount) }}</td><td class="px-4 py-3 text-right">{{ number_format($transaction->service_charge) }}</td><td class="px-4 py-3 text-right font-semibold">{{ number_format($transaction->total_cash_received) }}</td><td class="px-4 py-3"><span class="font-medium {{ $transaction->status==='active'?'text-green-700':'text-red-700' }}">{{ ucfirst($transaction->status) }}</span></td><td class="px-4 py-3 text-right"><a href="{{ route('remittances.show',$transaction) }}" class="text-blue-600 hover:underline">View</a></td></tr>
+                @empty<tr><td colspan="10" class="px-4 py-12 text-center text-gray-500">No remittance transactions found.</td></tr>@endforelse
+            </tbody></table></div>@if($transactions->hasPages())<div class="border-t p-4">{{ $transactions->links() }}</div>@endif
         </div>
-    </x-slot>
-
-    <div class="py-8">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-
-            @if (session('success'))
-                <div class="mb-4 p-4 bg-green-100 text-green-800 rounded-md">
-                    {{ session('success') }}
-                </div>
-            @endif
-
-            <div class="bg-white shadow-sm sm:rounded-lg">
-
-                <div class="p-6 border-b">
-                    <form method="GET"
-                          action="{{ route('remittances.index') }}"
-                          class="flex flex-col md:flex-row gap-3">
-
-                        <input type="text"
-                               name="search"
-                               value="{{ $search }}"
-                               placeholder="Search transaction, customer, mobile or provider reference..."
-                               class="w-full md:flex-1 rounded-md border-gray-300 shadow-sm">
-
-                        <button type="submit"
-                                class="px-5 py-2 bg-gray-800 text-white rounded-md">
-                            Search
-                        </button>
-
-                        @if ($search !== '')
-                            <a href="{{ route('remittances.index') }}"
-                               class="px-5 py-2 border border-gray-300 rounded-md text-center">
-                                Clear
-                            </a>
-                        @endif
-                    </form>
-                </div>
-
-                <div class="p-6 overflow-x-auto">
-
-                    <table class="min-w-full border-collapse">
-                      <thead>
-    <tr class="border-b bg-gray-50 text-left">
-        <th class="px-4 py-3">Transaction</th>
-        <th class="px-4 py-3">Type</th>
-        <th class="px-4 py-3">Date</th>
-        <th class="px-4 py-3">Customer</th>
-        <th class="px-4 py-3">Provider</th>
-        <th class="px-4 py-3 text-right">Principal</th>
-        <th class="px-4 py-3 text-right">Charge</th>
-        <th class="px-4 py-3 text-right">Customer Cash</th>
-        <th class="px-4 py-3">Status</th>
-        <th class="px-4 py-3 text-right">Action</th>
-    </tr>
-</thead>
-
-                        <tbody>
-                            @forelse ($transactions as $transaction)
-                                <tr class="border-b">
-
-                                    <td class="px-4 py-3 font-semibold">
-                                        {{ $transaction->transaction_number }}
-                                    </td>
-                                    <td class="px-4 py-3">
-    @if ($transaction->direction === 'receive')
-        <span class="inline-flex rounded-md bg-green-100 px-2.5 py-1 text-xs font-bold text-green-700">
-            RECEIVE
-        </span>
-    @else
-        <span class="inline-flex rounded-md bg-blue-100 px-2.5 py-1 text-xs font-bold text-blue-700">
-            SEND
-        </span>
-    @endif
-</td>
-
-                                    <td class="px-4 py-3">
-                                        {{ $transaction->date_ad->format('Y-m-d') }}
-                                        <div class="text-xs text-gray-500">
-                                            {{ $transaction->date_bs }}
-                                        </div>
-                                    </td>
-
-                                    <td class="px-4 py-3">
-                                        <div class="font-medium">
-                                            {{ $transaction->customer->name }}
-                                        </div>
-
-                                        <div class="text-xs text-gray-500">
-                                            {{ $transaction->customer->customer_code }}
-
-                                            @if ($transaction->customer->mobile)
-                                                - {{ $transaction->customer->mobile }}
-                                            @endif
-                                        </div>
-                                    </td>
-
-                                    <td class="px-4 py-3">
-                                        {{ $transaction->providerAccount->name }}
-                                    </td>
-
-                                    <td class="px-4 py-3 text-right">
-                                        {{ number_format($transaction->principal_amount) }}
-                                    </td>
-
-                                    <td class="px-4 py-3 text-right">
-                                        {{ number_format($transaction->service_charge) }}
-                                    </td>
-
-                                    <td class="px-4 py-3 text-right font-semibold">
-                                        {{ number_format($transaction->total_cash_received) }}
-                                    </td>
-
-                                    <td class="px-4 py-3">
-                                        @if ($transaction->status === 'active')
-                                            <span class="text-green-700 font-medium">
-                                                Active
-                                            </span>
-                                        @else
-                                            <span class="text-red-700 font-medium">
-                                                {{ ucfirst($transaction->status) }}
-                                            </span>
-                                        @endif
-                                    </td>
-
-                                    <td class="px-4 py-3 text-right">
-                                        <a href="{{ route('remittances.show', $transaction) }}"
-                                           class="text-blue-600">
-                                            View
-                                        </a>
-                                    </td>
-
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="9"
-                                        class="px-4 py-10 text-center text-gray-500">
-                                        No remittance transactions found.
-                                    </td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-
-                    <div class="mt-6">
-                        {{ $transactions->links() }}
-                    </div>
-
-                </div>
-            </div>
-        </div>
-    </div>
+    </div></div>
 </x-app-layout>

@@ -20,35 +20,61 @@ class AccountTransferController extends Controller
     {
         $this->ensureAdminOrStaff();
 
-        $search = trim((string) $request->get('search'));
+        $search = trim((string) $request->get('search', ''));
+        $fromAccountId = trim((string) $request->get('from_account_id', ''));
+        $toAccountId = trim((string) $request->get('to_account_id', ''));
+        $status = strtolower(trim((string) $request->get('status', 'active')));
+        if (! in_array($status, ['active', 'cancelled', 'all'], true)) $status = 'active';
+        $dateFrom = trim((string) $request->get('date_from', ''));
+        $dateTo = trim((string) $request->get('date_to', ''));
+        $currentFinancialYear = app(FinancialDateService::class)
+            ->fromEnglishDate(now()->toDateString())['financial_year'];
+        $financialYear = trim((string) $request->get('financial_year', $currentFinancialYear));
+        if ($financialYear === '') $financialYear = $currentFinancialYear;
 
-        $transfers = AccountTransfer::query()
+        $accounts = Account::query()->where('is_active', true)
+            ->where('type', '!=', Account::TYPE_FIXED_DEPOSIT)->orderBy('name')->get();
+        $financialYears = AccountTransfer::query()->whereNotNull('financial_year')
+            ->where('financial_year', '!=', '')->distinct()->orderByDesc('financial_year')
+            ->pluck('financial_year');
+        if (! $financialYears->contains($currentFinancialYear)) $financialYears->prepend($currentFinancialYear);
+
+        $query = AccountTransfer::query()
             ->with([
                 'fromAccount',
                 'toAccount',
                 'creator',
                 'canceller',
-            ])
-            ->when($search !== '', function ($query) use ($search) {
-                $query->where(function ($query) use ($search) {
+            ]);
+        if ($fromAccountId !== '') $query->where('from_account_id', $fromAccountId);
+        if ($toAccountId !== '') $query->where('to_account_id', $toAccountId);
+        if (strtolower($financialYear) !== 'all') $query->where('financial_year', $financialYear);
+        if ($status !== 'all') $query->where('status', $status);
+        if ($dateFrom !== '') $query->whereDate('date_ad', '>=', $dateFrom);
+        if ($dateTo !== '') $query->whereDate('date_ad', '<=', $dateTo);
+        if ($search !== '') {
+            $query->where(function ($query) use ($search) {
                     $query
                         ->where('transfer_number', 'like', "%{$search}%")
                         ->orWhere('reference', 'like', "%{$search}%")
                         ->orWhereHas('fromAccount', function ($query) use ($search) {
-                            $query->where('name', 'like', "%{$search}%");
+                            $query->where('name', 'like', "%{$search}%")
+                                ->orWhere('code', 'like', "%{$search}%");
                         })
                         ->orWhereHas('toAccount', function ($query) use ($search) {
-                            $query->where('name', 'like', "%{$search}%");
+                            $query->where('name', 'like', "%{$search}%")
+                                ->orWhere('code', 'like', "%{$search}%");
                         });
                 });
-            })
-            ->latest('id')
+        }
+        $transfers = $query->orderByDesc('date_ad')->orderByDesc('id')
             ->paginate(20)
             ->withQueryString();
 
         return view(
             'account-transfers.index',
-            compact('transfers', 'search')
+            compact('transfers', 'search', 'accounts', 'fromAccountId', 'toAccountId',
+                'financialYear', 'financialYears', 'currentFinancialYear', 'status', 'dateFrom', 'dateTo')
         );
     }
 
@@ -173,6 +199,36 @@ class AccountTransferController extends Controller
         );
     }
 
+    public function edit(AccountTransfer $accountTransfer)
+    {
+        $this->ensureAdminOrStaff();
+        abort_unless($accountTransfer->status === 'active', 403,
+            'Only active account transfers can be edited.');
+        $accountTransfer->load(['fromAccount', 'toAccount']);
+        return view('account-transfers.edit', compact('accountTransfer'));
+    }
+
+    public function update(Request $request, AccountTransfer $accountTransfer)
+    {
+        $this->ensureAdminOrStaff();
+        if ($accountTransfer->status !== 'active') {
+            return back()->withErrors(['transaction' => 'Only active account transfers can be edited.']);
+        }
+        $validated = $request->validate([
+            'date_ad' => ['required', 'date'],
+            'note' => ['nullable', 'string', 'max:2000'],
+        ]);
+        $validated = array_replace($validated,
+            app(FinancialDateService::class)->fromEnglishDate($validated['date_ad']));
+        try {
+            $accountTransfer = $this->service->updateMetadata($accountTransfer, $validated);
+        } catch (\RuntimeException $exception) {
+            return back()->withInput()->withErrors(['transaction' => $exception->getMessage()]);
+        }
+        return redirect()->route('account-transfers.show', $accountTransfer)
+            ->with('success', 'Account transfer updated successfully.');
+    }
+
     public function cancel(
         Request $request,
         AccountTransfer $accountTransfer
@@ -256,7 +312,7 @@ class AccountTransferController extends Controller
 
         abort_unless(
             $user &&
-            ($user->isAdmin() || $user->isStaff()),
+            $user->canAccessBusinessData(),
             403
         );
     }

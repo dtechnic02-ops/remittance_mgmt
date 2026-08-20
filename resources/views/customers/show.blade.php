@@ -5,11 +5,38 @@
                 Customer Details
             </h2>
 
-            <div class="flex gap-4">
-                <a href="{{ route('customers.edit', $customer) }}"
-                   class="text-indigo-600">
-                    Edit
-                </a>
+            <div class="flex flex-wrap items-center gap-4">
+                @if ($customer->is_active)
+                    @if (auth()->user()->hasPermission('customer.update'))
+                        <a href="{{ route('customers.edit', $customer) }}"
+                           class="text-indigo-600">
+                            Edit
+                        </a>
+
+                        @if ($hasBusinessUsage)
+                            <form method="POST"
+                                  action="{{ route('customers.cancel', $customer) }}"
+                                  onsubmit="return confirm('Deactivate this customer? Historical records will remain unchanged.');">
+                                @csrf
+                                <button type="submit" class="text-amber-700">
+                                    Cancel / Deactivate
+                                </button>
+                            </form>
+                        @endif
+                    @endif
+
+                    @if (! $hasBusinessUsage && auth()->user()->hasPermission('customer.delete'))
+                        <form method="POST"
+                              action="{{ route('customers.destroy', $customer) }}"
+                              onsubmit="return confirm('Permanently delete this unused customer and its documents?');">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="text-red-600">
+                                Delete
+                            </button>
+                        </form>
+                    @endif
+                @endif
 
                 <a href="{{ route('customers.index') }}"
                    class="text-gray-600">

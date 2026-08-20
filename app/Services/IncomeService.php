@@ -134,4 +134,52 @@ class IncomeService
         });
     }
 
+    public function updateMetadata(Income $income, array $data): Income
+    {
+        return DB::transaction(function () use ($income, $data) {
+            $income = Income::query()
+                ->lockForUpdate()
+                ->findOrFail($income->id);
+
+            if ($income->status !== 'active') {
+                throw new RuntimeException(
+                    'Only active income transactions can be edited.'
+                );
+            }
+
+            $entries = LedgerEntry::query()
+                ->where('transaction_type', 'income')
+                ->where('transaction_id', $income->id)
+                ->where('is_reversal', false)
+                ->lockForUpdate()
+                ->get();
+
+            if ($entries->isEmpty()) {
+                throw new RuntimeException(
+                    'Original income ledger entry was not found.'
+                );
+            }
+
+            $income->date_ad = $data['date_ad'];
+            $income->date_bs = $data['date_bs'];
+            $income->financial_year = $data['financial_year'];
+            $income->note = $data['note'] ?? null;
+            $income->save();
+
+            foreach ($entries as $entry) {
+                $entry->date_ad = $data['date_ad'];
+                $entry->date_bs = $data['date_bs'];
+                $entry->financial_year = $data['financial_year'];
+                $entry->note = $data['note'] ?? null;
+                $entry->save();
+            }
+
+            return $income->fresh([
+                'category',
+                'account',
+                'creator',
+            ]);
+        });
+    }
+
 }

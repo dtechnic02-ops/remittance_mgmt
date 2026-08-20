@@ -43,6 +43,16 @@ class User extends Authenticatable
         return $this->role === 'shareholder';
     }
 
+    public function isHelpDesk(): bool
+    {
+        return $this->role === 'help_desk';
+    }
+
+    public function canAccessBusinessData(): bool
+    {
+        return $this->isAdmin() || $this->isStaff() || $this->isHelpDesk();
+    }
+
     public function permissions(): BelongsToMany
     {
         return $this->belongsToMany(Permission::class)
@@ -62,6 +72,22 @@ class User extends Authenticatable
     {
         if ($this->isAdmin()) {
             return true;
+        }
+
+        if ($this->isHelpDesk()) {
+            return in_array($code, [
+                'customer.view',
+                'remittance.view',
+                'account-transfer.view',
+                'ledger.view',
+                'income.view',
+                'expense.view',
+                'lender.view',
+                'borrowing.view',
+                'shareholder.view',
+                'share-transaction.view',
+                'share-transfer.view',
+            ], true);
         }
 
         return $this->permissions()

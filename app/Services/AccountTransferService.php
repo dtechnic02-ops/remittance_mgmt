@@ -158,4 +158,33 @@ class AccountTransferService
         });
     }
 
+    public function updateMetadata(AccountTransfer $transfer, array $data): AccountTransfer
+    {
+        return DB::transaction(function () use ($transfer, $data) {
+            $transfer = AccountTransfer::query()->lockForUpdate()->findOrFail($transfer->id);
+            if ($transfer->status !== 'active') {
+                throw new RuntimeException('Only active account transfers can be edited.');
+            }
+            $entries = LedgerEntry::query()->where('transaction_type', 'account_transfer')
+                ->where('transaction_id', $transfer->id)->where('is_reversal', false)
+                ->lockForUpdate()->get();
+            if ($entries->count() !== 2) {
+                throw new RuntimeException('Original account transfer ledger entries were not found.');
+            }
+            $transfer->date_ad = $data['date_ad'];
+            $transfer->date_bs = $data['date_bs'];
+            $transfer->financial_year = $data['financial_year'];
+            $transfer->note = $data['note'] ?? null;
+            $transfer->save();
+            foreach ($entries as $entry) {
+                $entry->date_ad = $data['date_ad'];
+                $entry->date_bs = $data['date_bs'];
+                $entry->financial_year = $data['financial_year'];
+                $entry->note = $data['note'] ?? null;
+                $entry->save();
+            }
+            return $transfer->fresh(['fromAccount', 'toAccount', 'creator']);
+        });
+    }
+
 }

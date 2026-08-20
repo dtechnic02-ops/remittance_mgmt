@@ -35,6 +35,7 @@ class StaffDashboardController extends Controller
 
         $accountBalances = Account::query()
             ->where('is_active', true)
+            ->where('type', '!=', Account::TYPE_FIXED_DEPOSIT)
             ->whereIn('type', [
                 Account::TYPE_CASH,
                 Account::TYPE_BANK,

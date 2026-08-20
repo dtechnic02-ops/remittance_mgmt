@@ -36,25 +36,32 @@
 
                     <form method="GET"
                           action="{{ route('customers.index') }}"
-                          class="flex flex-col md:flex-row gap-3">
+                          class="grid grid-cols-1 gap-3 md:grid-cols-4">
 
                         <input type="text"
                                name="search"
                                value="{{ $search }}"
                                placeholder="Search code, name, mobile, phone or citizenship..."
-                               class="w-full md:flex-1 rounded-md border-gray-300 shadow-sm">
+                               class="w-full rounded-md border-gray-300 shadow-sm md:col-span-2">
 
-                        <button type="submit"
-                                class="px-5 py-2 bg-gray-800 text-white rounded-md">
-                            Search
-                        </button>
+                        <select name="status"
+                                class="w-full rounded-md border-gray-300 shadow-sm">
+                            <option value="active" @selected($status === 'active')>Active</option>
+                            <option value="inactive" @selected($status === 'inactive')>Cancelled / Inactive</option>
+                            <option value="all" @selected($status === 'all')>All</option>
+                        </select>
 
-                        @if ($search !== '')
+                        <div class="flex gap-3">
+                            <button type="submit"
+                                    class="px-5 py-2 bg-gray-800 text-white rounded-md">
+                                Filter
+                            </button>
+
                             <a href="{{ route('customers.index') }}"
                                class="px-5 py-2 border border-gray-300 rounded-md text-center">
-                                Clear
+                                Reset
                             </a>
-                        @endif
+                        </div>
 
                     </form>
 
@@ -185,39 +192,9 @@
 
                                     <td class="px-4 py-3">
 
-                                        <div class="flex justify-end gap-3">
-
+                                        <div class="text-right">
                                             <a href="{{ route('customers.show', $customer) }}"
-                                               class="text-blue-600">
-                                                View
-                                            </a>
-
-                                            <a href="{{ route('customers.edit', $customer) }}"
-                                               class="text-indigo-600">
-                                                Edit
-                                            </a>
-
-                                            @if (
-                                                auth()->user()->isAdmin()
-                                                && $customer->is_active
-                                            )
-
-                                                <form method="POST"
-                                                      action="{{ route('customers.destroy', $customer) }}"
-                                                      onsubmit="return confirm('Deactivate this customer?');">
-
-                                                    @csrf
-                                                    @method('DELETE')
-
-                                                    <button type="submit"
-                                                            class="text-red-600">
-                                                        Deactivate
-                                                    </button>
-
-                                                </form>
-
-                                            @endif
-
+                                               class="text-blue-600">View</a>
                                         </div>
 
                                     </td>
@@ -227,7 +204,7 @@
                             @empty
 
                                 <tr>
-                                    <td colspan="7"
+                                    <td colspan="8"
                                         class="px-4 py-10 text-center text-gray-500">
                                         No customers found.
                                     </td>

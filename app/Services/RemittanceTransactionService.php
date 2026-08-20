@@ -259,4 +259,33 @@ class RemittanceTransactionService
         });
     }
 
+    public function updateMetadata(RemittanceTransaction $transaction, array $data): RemittanceTransaction
+    {
+        return DB::transaction(function () use ($transaction, $data) {
+            $transaction = RemittanceTransaction::query()->lockForUpdate()->findOrFail($transaction->id);
+            if ($transaction->status !== 'active') {
+                throw new RuntimeException('Only active remittance transactions can be edited.');
+            }
+            $entries = LedgerEntry::query()->where('transaction_type', 'remittance')
+                ->where('transaction_id', $transaction->id)->where('is_reversal', false)
+                ->lockForUpdate()->get();
+            if ($entries->isEmpty()) {
+                throw new RuntimeException('Original remittance ledger entries were not found.');
+            }
+            $transaction->date_ad = $data['date_ad'];
+            $transaction->date_bs = $data['date_bs'];
+            $transaction->financial_year = $data['financial_year'];
+            $transaction->note = $data['note'] ?? null;
+            $transaction->save();
+            foreach ($entries as $entry) {
+                $entry->date_ad = $data['date_ad'];
+                $entry->date_bs = $data['date_bs'];
+                $entry->financial_year = $data['financial_year'];
+                $entry->note = $data['note'] ?? null;
+                $entry->save();
+            }
+            return $transaction->fresh(['customer', 'providerAccount', 'cashAccount', 'creator']);
+        });
+    }
+
 }

@@ -7,9 +7,13 @@
                 </h2>
 
                 <p class="mt-1 text-sm text-gray-500">
-                    Manage Staff and Shareholder login access
+                    Manage Staff, Shareholder and Help Desk login access
                 </p>
             </div>
+
+            <a href="{{ route('users.create') }}" class="rounded-md bg-gray-800 px-4 py-2 text-sm font-semibold text-white">
+                + Add User
+            </a>
         </div>
     </x-slot>
 
@@ -69,6 +73,11 @@
                             <option value="shareholder"
                                 @selected($role === 'shareholder')>
                                 Shareholder
+                            </option>
+
+                            <option value="help_desk"
+                                @selected($role === 'help_desk')>
+                                Help Desk
                             </option>
                         </select>
                     </div>
@@ -134,7 +143,7 @@
                             </h3>
 
                             <p class="mt-1 text-sm text-gray-500">
-                                Staff and Shareholder login accounts
+                                Staff, Shareholder and Help Desk login accounts
                             </p>
                         </div>
 
@@ -226,6 +235,12 @@
                                                 Shareholder
                                             </span>
 
+                                        @elseif ($user->role === 'help_desk')
+
+                                            <span class="inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                                                Help Desk
+                                            </span>
+
                                         @else
 
                                             <span class="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700">
@@ -259,6 +274,11 @@
 
                                     {{-- Action --}}
                                     <td class="px-5 py-4 text-right">
+
+                                        <a href="{{ route('users.edit', $user) }}"
+                                           class="mr-2 inline-flex rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                            Edit
+                                        </a>
 
                                         @if ($user->is_active)
 

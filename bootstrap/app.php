@@ -5,6 +5,8 @@ use App\Http\Middleware\ShareholderMiddleware;
 use App\Http\Middleware\StaffMiddleware;
 use App\Http\Middleware\RequirePermission;
 use App\Http\Middleware\EnsureUserIsActive;
+use App\Http\Middleware\EnforceHelpDeskReadOnly;
+use App\Http\Middleware\AdminOrHelpDeskMiddleware;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -19,12 +21,14 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->appendToGroup('web', EnsureUserIsActive::class);
+        $middleware->appendToGroup('web', EnforceHelpDeskReadOnly::class);
 
         $middleware->alias([
             'admin' => AdminMiddleware::class,
             'staff' => StaffMiddleware::class,
             'permission' => RequirePermission::class,
             'shareholder' => ShareholderMiddleware::class,
+            'admin-or-help-desk' => AdminOrHelpDeskMiddleware::class,
         ]);
 
         $middleware->prependToPriorityList(

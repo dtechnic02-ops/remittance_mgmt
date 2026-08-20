@@ -43,6 +43,12 @@ class ShareholderIsolationTest extends TestCase
     {
         $user = $this->user('shareholder', 'isolated@example.test');
         $other = $this->shareholder(null, 'TARGET', 5, 5000);
+        $transaction = $this->transaction(
+            $other,
+            $this->account(),
+            'SHR-AUTHORIZATION-TARGET',
+            ShareTransaction::TYPE_BUY
+        );
 
         $this->actingAs($user)
             ->get(route('shareholders.show', $other))
@@ -57,7 +63,7 @@ class ShareholderIsolationTest extends TestCase
             ->post(route('share-transactions.store'), [])
             ->assertForbidden();
         $this->actingAs($user)
-            ->post('/share-transactions/1/cancel', ['cancellation_reason' => 'No'])
+            ->post(route('share-transactions.cancel', $transaction), ['cancellation_reason' => 'No'])
             ->assertForbidden();
     }
 
@@ -132,9 +138,9 @@ class ShareholderIsolationTest extends TestCase
         ]);
     }
 
-    private function transaction(Shareholder $shareholder, Account $account, string $number, string $type): void
+    private function transaction(Shareholder $shareholder, Account $account, string $number, string $type): ShareTransaction
     {
-        ShareTransaction::create([
+        return ShareTransaction::create([
             'transaction_number' => $number, 'transaction_type' => $type,
             'shareholder_id' => $shareholder->id, 'account_id' => $account->id,
             'date_ad' => '2026-08-13', 'date_bs' => '2083-04-28',

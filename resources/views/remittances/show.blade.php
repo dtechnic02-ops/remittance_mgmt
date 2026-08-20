@@ -5,10 +5,17 @@
                 Remittance Details
             </h2>
 
-            <a href="{{ route('remittances.index') }}"
-               class="text-gray-600">
-                Back to Remittances
-            </a>
+            <div class="flex flex-wrap items-center gap-3">
+                @if ($remittance->status === 'active')
+                    @if (auth()->user()->isAdmin() || auth()->user()->hasPermission('remittance.create'))
+                        <a href="{{ route('remittances.edit', $remittance) }}" class="rounded-md bg-gray-800 px-4 py-2 text-sm font-semibold text-white">Edit</a>
+                    @endif
+                    @if (auth()->user()->isAdmin() || auth()->user()->hasPermission('remittance.cancel'))
+                        <button type="button" id="cancel_remittance_button" class="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white">Cancel Transaction</button>
+                    @endif
+                @endif
+                <a href="{{ route('remittances.index') }}" class="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700">Back to Remittances</a>
+            </div>
         </div>
     </x-slot>
 
@@ -208,58 +215,6 @@
                         @endif
 
                     </div>
-                                    @if (
-                    auth()->user()->hasPermission('remittance.cancel')
-                    && $remittance->status === 'active'
-                )
-
-                    <div class="mt-10 border-t pt-8">
-
-                        <h3 class="text-lg font-semibold text-red-700">
-                            Cancel Remittance
-                        </h3>
-
-                        <p class="mt-1 text-sm text-gray-500">
-                            Cancellation will keep the original transaction
-                            and reverse its financial effects.
-                        </p>
-
-                        <form method="POST"
-                              action="{{ route('remittances.cancel', $remittance) }}"
-                              class="mt-5"
-                              onsubmit="return confirm('Cancel this remittance transaction?');">
-
-                            @csrf
-
-                            <label for="cancellation_reason"
-                                   class="block text-sm font-medium text-gray-700">
-                                Cancellation Reason *
-                            </label>
-
-                            <textarea id="cancellation_reason"
-                                      name="cancellation_reason"
-                                      rows="3"
-                                      required
-                                      class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></textarea>
-
-                            @error('cancellation_reason')
-                                <p class="mt-1 text-sm text-red-600">
-                                    {{ $message }}
-                                </p>
-                            @enderror
-
-                            <button type="submit"
-                                    class="mt-4 px-5 py-2 bg-red-600 text-white rounded-md">
-                                Cancel Transaction
-                            </button>
-
-                        </form>
-
-                    </div>
-
-                @endif
-
-
                 @if ($remittance->status === 'cancelled')
 
                     <div class="mt-10 border-t pt-8">
@@ -305,4 +260,16 @@
 
         </div>
     </div>
+
+    @if ($remittance->status === 'active' && (auth()->user()->isAdmin() || auth()->user()->hasPermission('remittance.cancel')))
+        <div id="cancel_remittance_modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-50 px-4">
+            <div class="w-full rounded-xl bg-white p-6 shadow-xl" style="max-width:520px"><div class="flex items-start justify-between gap-4"><div><h3 class="text-lg font-semibold">Cancel Transaction</h3><p class="mt-1 text-sm text-gray-500">{{ $remittance->transaction_number }}</p></div><button type="button" id="cancel_remittance_close" class="text-2xl text-gray-400">&times;</button></div>
+                <div class="mt-4 rounded-md bg-red-50 p-4 text-sm text-red-700">Cancellation keeps the original transaction and reverses its existing financial effects.</div>
+                <form method="POST" action="{{ route('remittances.cancel',$remittance) }}" class="mt-5">@csrf
+                    <label for="cancellation_reason" class="block text-sm font-medium text-gray-700">Cancellation Reason *</label><textarea id="cancellation_reason" name="cancellation_reason" rows="4" maxlength="1000" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">{{ old('cancellation_reason') }}</textarea>
+                    <div class="mt-5 flex justify-end gap-3"><button type="button" id="cancel_remittance_back" class="rounded-md border border-gray-300 px-4 py-2 text-sm">Back</button><button type="submit" onclick="return confirm('Are you sure you want to cancel this remittance? This will reverse its effect.')" class="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white">Confirm Cancel</button></div>
+                </form></div>
+        </div>
+        <script>document.addEventListener('DOMContentLoaded',function(){const o=document.getElementById('cancel_remittance_button'),m=document.getElementById('cancel_remittance_modal'),x=document.getElementById('cancel_remittance_close'),b=document.getElementById('cancel_remittance_back');function open(){m.classList.remove('hidden');m.classList.add('flex')}function close(){m.classList.add('hidden');m.classList.remove('flex')}o?.addEventListener('click',open);x?.addEventListener('click',close);b?.addEventListener('click',close);m.addEventListener('click',e=>{if(e.target===m)close()});document.addEventListener('keydown',e=>{if(e.key==='Escape')close()});});</script>
+    @endif
 </x-app-layout>

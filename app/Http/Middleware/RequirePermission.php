@@ -17,7 +17,8 @@ class RequirePermission
 
         abort_unless(
             $user && ($user->isAdmin() || (
-                $user->isStaff() && $user->hasPermission($permission)
+                ($user->isStaff() || $user->isHelpDesk())
+                && $user->hasPermission($permission)
             )),
             403
         );

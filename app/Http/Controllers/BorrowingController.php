@@ -289,7 +289,7 @@ class BorrowingController extends Controller
 
         abort_unless(
             $user &&
-            ($user->isAdmin() || $user->isStaff()),
+            $user->canAccessBusinessData(),
             403
         );
     }

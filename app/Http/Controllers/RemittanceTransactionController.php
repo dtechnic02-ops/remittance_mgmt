@@ -22,17 +22,45 @@ class RemittanceTransactionController extends Controller
     {
         $this->ensureAdminOrStaff();
 
-        $search = trim((string) $request->get('search'));
+        $search = trim((string) $request->get('search', ''));
+        $providerAccountId = trim((string) $request->get('provider_account_id', ''));
+        $cashAccountId = trim((string) $request->get('cash_account_id', ''));
+        $status = strtolower(trim((string) $request->get('status', 'active')));
+        if (! in_array($status, ['active', 'cancelled', 'all'], true)) $status = 'active';
+        $dateFrom = trim((string) $request->get('date_from', ''));
+        $dateTo = trim((string) $request->get('date_to', ''));
+        $currentFinancialYear = app(FinancialDateService::class)
+            ->fromEnglishDate(now()->toDateString())['financial_year'];
+        $financialYear = trim((string) $request->get('financial_year', $currentFinancialYear));
+        if ($financialYear === '') $financialYear = $currentFinancialYear;
 
-        $transactions = RemittanceTransaction::query()
+        $providers = Account::query()->where('type', Account::TYPE_REMITTANCE)
+            ->where('is_active', true)->orderBy('name')->get();
+        $cashAccounts = Account::query()->where('type', Account::TYPE_CASH)
+            ->where('is_active', true)->orderBy('name')->get();
+        $financialYears = RemittanceTransaction::query()->whereNotNull('financial_year')
+            ->where('financial_year', '!=', '')->distinct()->orderByDesc('financial_year')
+            ->pluck('financial_year');
+        if (! $financialYears->contains($currentFinancialYear)) $financialYears->prepend($currentFinancialYear);
+
+        $query = RemittanceTransaction::query()
             ->with([
                 'customer',
                 'providerAccount',
                 'cashAccount',
                 'creator',
-            ])
-            ->when($search !== '', function ($query) use ($search) {
-                $query->where(function ($query) use ($search) {
+                'canceller',
+            ]);
+
+        if ($providerAccountId !== '') $query->where('provider_account_id', $providerAccountId);
+        if ($cashAccountId !== '') $query->where('cash_account_id', $cashAccountId);
+        if (strtolower($financialYear) !== 'all') $query->where('financial_year', $financialYear);
+        if ($status !== 'all') $query->where('status', $status);
+        if ($dateFrom !== '') $query->whereDate('date_ad', '>=', $dateFrom);
+        if ($dateTo !== '') $query->whereDate('date_ad', '<=', $dateTo);
+
+        if ($search !== '') {
+            $query->where(function ($query) use ($search) {
                     $query
                         ->where('transaction_number', 'like', "%{$search}%")
                         ->orWhere('provider_reference', 'like', "%{$search}%")
@@ -40,16 +68,27 @@ class RemittanceTransactionController extends Controller
                             $query->where('name', 'like', "%{$search}%")
                                 ->orWhere('customer_code', 'like', "%{$search}%")
                                 ->orWhere('mobile', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('providerAccount', function ($query) use ($search) {
+                            $query->where('name', 'like', "%{$search}%")
+                                ->orWhere('code', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('cashAccount', function ($query) use ($search) {
+                            $query->where('name', 'like', "%{$search}%")
+                                ->orWhere('code', 'like', "%{$search}%");
                         });
                 });
-            })
-            ->latest('id')
+        }
+
+        $transactions = $query->orderByDesc('date_ad')->orderByDesc('id')
             ->paginate(20)
             ->withQueryString();
 
         return view(
             'remittances.index',
-            compact('transactions', 'search')
+            compact('transactions', 'search', 'providers', 'providerAccountId',
+                'cashAccounts', 'cashAccountId', 'financialYear', 'financialYears',
+                'currentFinancialYear', 'status', 'dateFrom', 'dateTo')
         );
     }
 
@@ -243,6 +282,8 @@ class RemittanceTransactionController extends Controller
     ]);
 }
 
+
+
     public function show(RemittanceTransaction $remittance)
     {
         $this->ensureAdminOrStaff();
@@ -259,6 +300,36 @@ class RemittanceTransactionController extends Controller
             'remittances.show',
             compact('remittance')
         );
+    }
+
+    public function edit(RemittanceTransaction $remittance)
+    {
+        $this->ensureAdminOrStaff();
+        abort_unless($remittance->status === 'active', 403,
+            'Only active remittance transactions can be edited.');
+        $remittance->load(['customer', 'providerAccount', 'cashAccount']);
+        return view('remittances.edit', compact('remittance'));
+    }
+
+    public function update(Request $request, RemittanceTransaction $remittance)
+    {
+        $this->ensureAdminOrStaff();
+        if ($remittance->status !== 'active') {
+            return back()->withErrors(['transaction' => 'Only active remittance transactions can be edited.']);
+        }
+        $validated = $request->validate([
+            'date_ad' => ['required', 'date'],
+            'note' => ['nullable', 'string', 'max:2000'],
+        ]);
+        $validated = array_replace($validated,
+            app(FinancialDateService::class)->fromEnglishDate($validated['date_ad']));
+        try {
+            $remittance = $this->service->updateMetadata($remittance, $validated);
+        } catch (\RuntimeException $exception) {
+            return back()->withInput()->withErrors(['transaction' => $exception->getMessage()]);
+        }
+        return redirect()->route('remittances.show', $remittance)
+            ->with('success', 'Remittance transaction updated successfully.');
     }
 
     public function cancel(
@@ -306,7 +377,7 @@ class RemittanceTransactionController extends Controller
 
         abort_unless(
             $user &&
-            ($user->isAdmin() || $user->isStaff()),
+            $user->canAccessBusinessData(),
             403
         );
     }

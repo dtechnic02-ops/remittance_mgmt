@@ -70,7 +70,7 @@
             </div>
 
             <div class="mt-1 text-xs text-gray-400">
-                {{ ucfirst(auth()->user()->role) }}
+                {{ auth()->user()->isHelpDesk() ? 'Help Desk' : ucfirst(auth()->user()->role) }}
             </div>
 
         </div>
@@ -91,6 +91,15 @@
                    ">
                     Dashboard
                 </a>
+
+                @if (
+                    auth()->user()->hasPermission('customer.view')
+                    || auth()->user()->hasPermission('remittance.view')
+                )
+                    <div class="px-4 pb-1 pt-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                        Operations
+                    </div>
+                @endif
 
                 {{-- Customers --}}
                 @if (auth()->user()->hasPermission('customer.view'))
@@ -119,6 +128,35 @@
                         Remittances
                     </a>
                 @endif
+
+@if (
+    auth()->user()->isAdmin()
+    || auth()->user()->hasPermission('account-transfer.view')
+    || auth()->user()->hasPermission('ledger.view')
+    || auth()->user()->hasPermission('income.view')
+    || auth()->user()->hasPermission('expense.view')
+    || auth()->user()->hasPermission('lender.view')
+    || auth()->user()->hasPermission('borrowing.view')
+)
+    <div class="px-4 pb-1 pt-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
+        Finance
+    </div>
+@endif
+
+                {{-- Accounts --}}
+                @if (auth()->user()->isAdmin() || auth()->user()->isHelpDesk())
+                    <a href="{{ route('accounts.index') }}"
+                       class="
+                            block rounded-md px-4 py-2.5 text-sm
+                            {{ request()->routeIs('accounts.*') || request()->routeIs('opening-balances.*')
+                                ? 'bg-gray-800 text-white'
+                                : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                            }}
+                       ">
+                        Accounts
+                    </a>
+                @endif
+
 @if (auth()->user()->hasPermission('account-transfer.view'))
     <a href="{{ route('account-transfers.index') }}"
        class="
@@ -131,30 +169,6 @@
         Account Transfers
     </a>
 @endif
-                {{-- Accounts --}}
-                @if (auth()->user()->isAdmin())
-                    <a href="{{ route('accounts.index') }}"
-                       class="
-                            block rounded-md px-4 py-2.5 text-sm
-                            {{ request()->routeIs('accounts.*')
-                                ? 'bg-gray-800 text-white'
-                                : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                            }}
-                       ">
-                        Accounts
-                    </a>
-
-                    <a href="{{ route('opening-balances.index') }}"
-                       class="
-                            block rounded-md px-4 py-2.5 text-sm
-                            {{ request()->routeIs('opening-balances.*')
-                                ? 'bg-gray-800 text-white'
-                                : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                            }}
-                       ">
-                        Opening Balances
-                    </a>
-                @endif
                 @if (auth()->user()->hasPermission('ledger.view'))
     <a href="{{ route('ledger.index') }}"
        class="
@@ -164,20 +178,7 @@
                 : 'text-gray-300 hover:bg-gray-800 hover:text-white'
             }}
        ">
-        Ledger
-    </a>
-@endif
-@if (auth()->user()->hasPermission('expense.view'))
-    <a href="{{ route('expenses.index') }}"
-       class="
-            block rounded-md px-4 py-2.5 text-sm
-            {{ request()->routeIs('expenses.*') ||
-               request()->routeIs('expense-categories.*')
-                ? 'bg-gray-800 text-white'
-                : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-            }}
-       ">
-        Expense
+        Financial Ledger
     </a>
 @endif
 @if (auth()->user()->hasPermission('income.view'))
@@ -193,16 +194,17 @@
         Income
     </a>
 @endif
-@if (auth()->user()->hasPermission('shareholder.view'))
-    <a href="{{ route('shareholders.index') }}"
+@if (auth()->user()->hasPermission('expense.view'))
+    <a href="{{ route('expenses.index') }}"
        class="
             block rounded-md px-4 py-2.5 text-sm
-            {{ request()->routeIs('shareholders.*')
+            {{ request()->routeIs('expenses.*') ||
+               request()->routeIs('expense-categories.*')
                 ? 'bg-gray-800 text-white'
                 : 'text-gray-300 hover:bg-gray-800 hover:text-white'
             }}
        ">
-        Shareholders
+        Expenses
     </a>
 @endif
 @if (auth()->user()->hasPermission('lender.view'))
@@ -217,7 +219,53 @@
         Lenders
     </a>
 @endif
-@if (auth()->user()->hasPermission('share-transaction.view'))
+@if (auth()->user()->hasPermission('borrowing.view'))
+    <a href="{{ route('borrowings.index') }}"
+       class="
+            block rounded-md px-4 py-2.5 text-sm
+            {{ request()->routeIs('borrowings.*')
+                ? 'bg-gray-800 text-white'
+                : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+            }}
+       ">
+        Borrowings
+    </a>
+@endif
+
+@if (
+    auth()->user()->isShareholder()
+    || auth()->user()->hasPermission('shareholder.view')
+    || auth()->user()->hasPermission('share-transaction.view')
+    || auth()->user()->hasPermission('share-transfer.view')
+)
+    <div class="px-4 pb-1 pt-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
+        Share Management
+    </div>
+@endif
+@if (auth()->user()->hasPermission('shareholder.view'))
+    <a href="{{ route('shareholders.index') }}"
+       class="
+            block rounded-md px-4 py-2.5 text-sm
+            {{ request()->routeIs('shareholders.*')
+                ? 'bg-gray-800 text-white'
+                : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+            }}
+       ">
+        Shareholders
+    </a>
+@endif
+@if (
+    auth()->user()->isAdmin()
+    || auth()->user()->isHelpDesk()
+    || auth()->user()->isShareholder()
+    || (
+        auth()->user()->isStaff()
+        && (
+            auth()->user()->hasPermission('share-transaction.view')
+            || auth()->user()->hasPermission('share-transfer.view')
+        )
+    )
+)
     <a href="{{ route('share-transactions.index') }}"
        class="
             block rounded-md px-4 py-2.5 text-sm
@@ -227,24 +275,6 @@
             }}
        ">
         Share Transactions
-    </a>
-@endif
-@if (
-    auth()->user()->isAdmin() ||
-    (
-        auth()->user()->isStaff() &&
-        auth()->user()->hasPermission('share-transfer.view')
-    ) || auth()->user()->isShareholder()
-)
-    <a href="{{ route('share-transfers.index') }}"
-       class="
-            block rounded-md px-4 py-2.5 text-sm
-            {{ request()->routeIs('share-transfers.*')
-                ? 'bg-gray-800 text-white'
-                : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-            }}
-       ">
-        Share Transfers
     </a>
 @endif
                 {{-- Administration --}}
@@ -341,20 +371,6 @@
 
                     </div>
 
-                @endif
-
-                {{-- Shareholder --}}
-                @if (auth()->user()->isShareholder())
-                    <a href="{{ route('shareholder.dashboard') }}"
-                       class="
-                            block rounded-md px-4 py-2.5 text-sm
-                            {{ request()->routeIs('shareholder.*')
-                                ? 'bg-gray-800 text-white'
-                                : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                            }}
-                       ">
-                        My Shares
-                    </a>
                 @endif
 
             </div>

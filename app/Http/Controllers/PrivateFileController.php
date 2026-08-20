@@ -92,6 +92,7 @@ class PrivateFileController extends Controller
 
         $user = $request->user();
         $authorized = $user->isAdmin()
+            || $user->isHelpDesk()
             || ($user->isStaff() && $user->hasPermission('share-transfer.view'));
 
         if ($user->isShareholder()) {

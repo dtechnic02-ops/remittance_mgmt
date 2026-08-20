@@ -27,23 +27,35 @@ class ShareTransferTest extends TestCase
         $this->shareholder($ownerUser, 'OWNER', 10);
         $this->shareholder(null, 'TARGET', 5);
 
-        $this->actingAs($admin)->get(route('share-transfers.index'))->assertOk();
-        $this->actingAs($admin)->get(route('share-transfers.create'))->assertOk();
+        $this->actingAs($admin)->get(route('share-transfers.index'))
+            ->assertRedirect(route('share-transactions.index', ['type' => 'transfer']));
+        $this->actingAs($admin)->get(route('share-transactions.index'))->assertOk();
+        $this->actingAs($admin)->get(route('share-transfers.create'))->assertRedirect();
+        $this->actingAs($admin)
+            ->get(route('share-transactions.create', ['type' => 'transfer']))
+            ->assertOk();
 
-        $this->actingAs($staff)->get(route('share-transfers.index'))->assertForbidden();
+        $this->actingAs($staff)->get(route('share-transactions.index'))->assertForbidden();
         $this->grant($staff, 'share-transfer.view');
-        $this->actingAs($staff)->get(route('share-transfers.index'))
+        $this->actingAs($staff)->get(route('share-transactions.index', ['type' => 'transfer']))
             ->assertOk()->assertDontSee('+ New Share Transfer');
-        $this->actingAs($staff)->get(route('share-transfers.create'))->assertForbidden();
+        $this->actingAs($staff)->get(route('share-transactions.create', ['type' => 'transfer']))
+            ->assertForbidden();
         $this->grant($staff, 'share-transfer.create');
-        $this->actingAs($staff)->get(route('share-transfers.create'))->assertOk();
+        $this->actingAs($staff)->get(route('share-transfers.create'))->assertRedirect();
+        $this->actingAs($staff)
+            ->get(route('share-transactions.create', ['type' => 'transfer']))
+            ->assertOk();
 
-        $this->actingAs($ownerUser)->get(route('share-transfers.index'))
-            ->assertOk()->assertSee('+ New Share Transfer');
-        $this->actingAs($ownerUser)->get(route('share-transfers.create'))->assertOk();
+        $this->actingAs($ownerUser)->get(route('share-transactions.index', ['type' => 'transfer']))
+            ->assertOk()->assertSee('+ New Share Transaction');
+        $this->actingAs($ownerUser)->get(route('share-transfers.create'))->assertRedirect();
+        $this->actingAs($ownerUser)
+            ->get(route('share-transactions.create', ['type' => 'transfer']))
+            ->assertOk();
 
         auth()->logout();
-        $this->get(route('share-transfers.index'))->assertRedirect(route('login'));
+        $this->get(route('share-transactions.index'))->assertRedirect(route('login'));
     }
 
     public function test_shareholder_cannot_spoof_sender_and_portal_marks_sent_and_received(): void
@@ -54,16 +66,17 @@ class ShareTransferTest extends TestCase
         $receiver = $this->shareholder($receiverUser, 'RECEIVER', 2);
         $spoofed = $this->shareholder(null, 'SPOOFED', 20);
 
-        $this->actingAs($senderUser)->post(route('share-transfers.store'), [
+        $response = $this->actingAs($senderUser)->post(route('share-transfers.store'), [
             'shareholder_id' => $spoofed->id,
             'to_shareholder_id' => $receiver->id,
             'date_ad' => '2026-08-18',
             'date_bs' => '2000-01-01',
             'financial_year' => '2000/01',
             'kitta' => 3,
-        ])->assertRedirect(route('share-transfers.index'));
+        ]);
 
         $transfer = ShareTransaction::where('transaction_type', ShareTransaction::TYPE_TRANSFER)->firstOrFail();
+        $response->assertRedirect(route('share-transactions.show', $transfer));
         $this->assertSame($sender->id, $transfer->shareholder_id);
         $this->assertSame($receiver->id, $transfer->to_shareholder_id);
         $this->assertSame(7, $sender->fresh()->kitta);
@@ -86,7 +99,7 @@ class ShareTransferTest extends TestCase
         $own = $this->transfer($viewer, $otherA, 1, $viewerUser);
         $private = $this->transfer($otherA, $otherB, 1, $viewerUser);
 
-        $this->actingAs($viewerUser)->get(route('share-transfers.index'))
+        $this->actingAs($viewerUser)->get(route('share-transactions.index', ['type' => 'transfer']))
             ->assertOk()
             ->assertSee($own->transaction_number)
             ->assertDontSee($private->transaction_number);
@@ -133,7 +146,7 @@ class ShareTransferTest extends TestCase
         $this->assertSame(3000, $receiver->fresh()->total_investment);
     }
 
-    public function test_transfer_never_enters_old_buy_withdraw_history_or_nullable_account_detail(): void
+    public function test_transfer_appears_in_unified_history_and_nullable_account_detail_is_safe(): void
     {
         $admin = $this->user('admin', 'history@example.test');
         $sender = $this->shareholder(null, 'HISTORY-FROM', 5);
@@ -151,12 +164,12 @@ class ShareTransferTest extends TestCase
         $transfer = $this->transfer($sender, $receiver, 1, $admin);
 
         $this->actingAs($admin)->get(route('share-transactions.index'))
-            ->assertOk()->assertSee($buy->transaction_number)->assertDontSee($transfer->transaction_number);
+            ->assertOk()->assertSee($buy->transaction_number)->assertSee($transfer->transaction_number);
         $this->actingAs($admin)->get(route('share-transactions.show', $buy))->assertOk();
-        $this->actingAs($admin)->get(route('share-transactions.show', $transfer))->assertNotFound();
+        $this->actingAs($admin)->get(route('share-transactions.show', $transfer))->assertOk();
     }
 
-    public function test_transfer_cancellation_is_explicitly_blocked_without_state_change(): void
+    public function test_transfer_cancellation_uses_unified_route_and_reverses_kitta_once(): void
     {
         $admin = $this->user('admin', 'cancel-transfer@example.test');
         $sender = $this->shareholder(null, 'CANCEL-FROM', 6);
@@ -164,14 +177,14 @@ class ShareTransferTest extends TestCase
         $transfer = $this->transfer($sender, $receiver, 2, $admin);
 
         $this->actingAs($admin)
-            ->from(route('share-transfers.index'))
+            ->from(route('share-transactions.show', $transfer))
             ->post(route('share-transactions.cancel', $transfer), ['cancellation_reason' => 'Incorrect'])
-            ->assertRedirect(route('share-transfers.index'))
-            ->assertSessionHasErrors('transaction');
+            ->assertRedirect(route('share-transactions.show', $transfer))
+            ->assertSessionHas('success');
 
-        $this->assertSame('active', $transfer->fresh()->status);
-        $this->assertSame(4, $sender->fresh()->kitta);
-        $this->assertSame(4, $receiver->fresh()->kitta);
+        $this->assertSame('cancelled', $transfer->fresh()->status);
+        $this->assertSame(6, $sender->fresh()->kitta);
+        $this->assertSame(2, $receiver->fresh()->kitta);
         $this->assertDatabaseCount('ledger_entries', 0);
     }
 

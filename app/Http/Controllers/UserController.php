@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
+use Illuminate\View\View;
 
 class UserController extends Controller
 {
@@ -24,7 +27,7 @@ class UserController extends Controller
                 });
             })
             ->when(
-                in_array($role, ['staff', 'shareholder'], true),
+                in_array($role, ['staff', 'shareholder', 'help_desk'], true),
                 fn ($query) => $query->where('role', $role)
             )
             ->when(
@@ -50,6 +53,79 @@ class UserController extends Controller
                 'status'
             )
         );
+    }
+
+    public function create(): View
+    {
+        $this->ensureAdmin();
+
+        return view('users.create');
+    }
+
+    public function store(Request $request)
+    {
+        $this->ensureAdmin();
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:150'],
+            'email' => ['required', 'email', 'max:150', 'unique:users,email'],
+            'password' => ['required', 'string', 'min:6', 'confirmed'],
+            'role' => ['required', Rule::in(['staff', 'shareholder', 'help_desk'])],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+
+        $user = User::query()->create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => Hash::make($validated['password']),
+            'role' => $validated['role'],
+            'is_active' => $request->boolean('is_active', true),
+            'email_verified_at' => now(),
+        ]);
+
+        return redirect()
+            ->route('users.edit', $user)
+            ->with('success', 'User created successfully.');
+    }
+
+    public function edit(User $user): View
+    {
+        $this->ensureAdmin();
+        abort_if($user->isAdmin(), 404);
+
+        return view('users.edit', compact('user'));
+    }
+
+    public function update(Request $request, User $user)
+    {
+        $this->ensureAdmin();
+        abort_if($user->isAdmin(), 404);
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:150'],
+            'email' => [
+                'required',
+                'email',
+                'max:150',
+                Rule::unique('users', 'email')->ignore($user->id),
+            ],
+            'password' => ['nullable', 'string', 'min:6', 'confirmed'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+
+        $user->name = $validated['name'];
+        $user->email = $validated['email'];
+        $user->is_active = $request->boolean('is_active');
+
+        if (! empty($validated['password'])) {
+            $user->password = Hash::make($validated['password']);
+        }
+
+        $user->save();
+
+        return redirect()
+            ->route('users.index')
+            ->with('success', 'User updated successfully.');
     }
 
     public function block(User $user)

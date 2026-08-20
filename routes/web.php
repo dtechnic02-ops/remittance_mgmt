@@ -23,10 +23,11 @@ use App\Http\Controllers\PrivateFileController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\CustomerImportController;
 use App\Http\Controllers\StaffDashboardController;
+use App\Http\Controllers\HelpDeskDashboardController;
 use App\Http\Controllers\CompanyInfoController;
 use App\Http\Controllers\CompanyLinkController;
 use App\Http\Controllers\PublicPageController;
-use App\Http\Controllers\ShareTransferController;
+
 use App\Http\Controllers\ShareholderAccountController;
 use App\Http\Controllers\UserController;
 
@@ -46,6 +47,10 @@ Route::get('/dashboard', function () {
         return redirect()->route('staff.dashboard');
     }
 
+    if ($user->isHelpDesk()) {
+        return redirect()->route('help-desk.dashboard');
+    }
+
     if ($user->isShareholder()) {
         return redirect()->route('shareholder.dashboard');
     }
@@ -58,9 +63,8 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
     Route::get('/admin/dashboard', AdminDashboardController::class)
         ->name('admin.dashboard');
 
-    Route::resource('accounts', AccountController::class);
-    Route::get('/accounts/{account}/attachment', [PrivateFileController::class, 'account'])
-        ->name('accounts.attachment');
+    Route::resource('accounts', AccountController::class)
+        ->only(['create', 'store', 'edit', 'update', 'destroy']);
 Route::resource('opening-balances', OpeningBalanceController::class)
     ->only(['index', 'create', 'store', 'edit', 'update']);
     Route::get('/opening-balances/{openingBalance}/attachment', [PrivateFileController::class, 'openingBalance'])
@@ -73,6 +77,15 @@ Route::get(
     '/admin/users',
     [UserController::class, 'index']
 )->name('users.index');
+
+Route::get('/admin/users/create', [UserController::class, 'create'])
+    ->name('users.create');
+Route::post('/admin/users', [UserController::class, 'store'])
+    ->name('users.store');
+Route::get('/admin/users/{user}/edit', [UserController::class, 'edit'])
+    ->name('users.edit');
+Route::put('/admin/users/{user}', [UserController::class, 'update'])
+    ->name('users.update');
 
 Route::post(
     '/admin/users/{user}/block',
@@ -134,10 +147,24 @@ Route::post(
 )->name('shareholder-accounts.deactivate');
 });
 
+Route::middleware(['auth', 'verified', 'admin-or-help-desk'])->group(function () {
+    Route::get('/accounts', [AccountController::class, 'index'])
+        ->name('accounts.index');
+    Route::get('/accounts/{account}', [AccountController::class, 'show'])
+        ->name('accounts.show');
+    Route::get('/accounts/{account}/attachment', [PrivateFileController::class, 'account'])
+        ->name('accounts.attachment');
+});
+
 
 Route::middleware(['auth', 'verified', 'staff'])->group(function () {
     Route::get('/staff/dashboard', StaffDashboardController::class)
         ->name('staff.dashboard');
+});
+
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/help-desk/dashboard', HelpDeskDashboardController::class)
+        ->name('help-desk.dashboard');
 });
 
 
@@ -172,6 +199,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:customer.view')->name('customers.documents.type');
     Route::get('/customers/{customer}/documents/file/{document}', [PrivateFileController::class, 'customerDocument'])
         ->middleware('permission:customer.view')->name('customers.documents.show');
+
+    Route::post('/customers/{customer}/cancel', [CustomerController::class, 'cancel'])
+        ->middleware('permission:customer.update')->name('customers.cancel');
     Route::get('/shareholders/{shareholder}/documents/{type}', [PrivateFileController::class, 'shareholder'])
         ->middleware('permission:shareholder.view')->name('shareholders.documents.show');
     Route::get('/remittances/{remittance}/attachment', [PrivateFileController::class, 'remittance'])
@@ -238,6 +268,16 @@ Route::get(
     [AccountTransferController::class, 'convertDate']
 )->middleware('permission:account-transfer.create')->name('account-transfers.date-convert');
 
+Route::get(
+    '/account-transfers/{accountTransfer}/edit',
+    [AccountTransferController::class, 'edit']
+)->middleware('permission:account-transfer.create')->name('account-transfers.edit');
+
+Route::put(
+    '/account-transfers/{accountTransfer}',
+    [AccountTransferController::class, 'update']
+)->middleware('permission:account-transfer.create')->name('account-transfers.update');
+
 Route::post(
     '/account-transfers/{accountTransfer}/cancel',
     [AccountTransferController::class, 'cancel']
@@ -251,6 +291,16 @@ Route::post(
     '/remittances',
     [RemittanceTransactionController::class, 'store']
 )->middleware('permission:remittance.create')->name('remittances.store');
+
+Route::get(
+    '/remittances/{remittance}/edit',
+    [RemittanceTransactionController::class, 'edit']
+)->middleware('permission:remittance.create')->name('remittances.edit');
+
+Route::put(
+    '/remittances/{remittance}',
+    [RemittanceTransactionController::class, 'update']
+)->middleware('permission:remittance.create')->name('remittances.update');
 
 Route::post(
     '/remittances/{remittance}/cancel',
@@ -297,6 +347,16 @@ Route::get(
     [ExpenseController::class, 'convertDate']
 )->middleware('permission:expense.create')->name('expenses.date-convert');
 
+Route::get(
+    '/expenses/{expense}/edit',
+    [ExpenseController::class, 'edit']
+)->middleware('permission:expense.create')->name('expenses.edit');
+
+Route::put(
+    '/expenses/{expense}',
+    [ExpenseController::class, 'update']
+)->middleware('permission:expense.create')->name('expenses.update');
+
 Route::post(
     '/expenses/{expense}/cancel',
     [ExpenseController::class, 'cancel']
@@ -338,6 +398,16 @@ Route::get(
     [IncomeController::class, 'convertDate']
 )->middleware('permission:income.create')->name('incomes.date-convert');
 
+Route::get(
+    '/incomes/{income}/edit',
+    [IncomeController::class, 'edit']
+)->middleware('permission:income.create')->name('incomes.edit');
+
+Route::put(
+    '/incomes/{income}',
+    [IncomeController::class, 'update']
+)->middleware('permission:income.create')->name('incomes.update');
+
 Route::post(
     '/incomes/{income}/cancel',
     [IncomeController::class, 'cancel']
@@ -347,6 +417,15 @@ Route::get(
     '/incomes/{income}',
     [IncomeController::class, 'show']
 )->middleware('permission:income.view')->name('incomes.show');
+
+
+Route::post(
+    '/shareholders/{shareholder}/cancel',
+    [ShareholderController::class, 'cancel']
+)
+    ->middleware('permission:shareholder.update')
+    ->name('shareholders.cancel');
+
 Route::resource(
     'shareholders',
     ShareholderController::class
@@ -357,54 +436,146 @@ Route::resource(
     'show',
     'edit',
     'update',
+    'destroy',
 ])
-    ->middlewareFor(['index', 'show'], 'permission:shareholder.view')
-    ->middlewareFor(['create', 'store'], 'permission:shareholder.create')
-    ->middlewareFor(['edit', 'update'], 'permission:shareholder.update');
+    ->middlewareFor(
+        ['index', 'show'],
+        'permission:shareholder.view'
+    )
+    ->middlewareFor(
+        ['create', 'store'],
+        'permission:shareholder.create'
+    )
+    ->middlewareFor(
+        ['edit', 'update', 'destroy'],
+        'permission:shareholder.update'
+    );
+ 
 Route::get(
     '/share-transactions/convert-date',
     [ShareTransactionController::class, 'convertDate']
-)->middleware('permission:share-transaction.create')->name('share-transactions.convert-date');
+)->name('share-transactions.convert-date');
+
+
+/*
+|--------------------------------------------------------------------------
+| Unified Share Transactions
+|--------------------------------------------------------------------------
+|
+| BUY / WITHDRAW / TRANSFER
+| एउटै ShareTransactionController बाट handle हुन्छ।
+|
+*/
+
+Route::get(
+    '/share-transactions',
+    [ShareTransactionController::class, 'index']
+)->name('share-transactions.index');
+
+
+/*
+|--------------------------------------------------------------------------
+| BUY / WITHDRAW
+|--------------------------------------------------------------------------
+*/
+
+Route::get(
+    '/share-transactions/create',
+    [ShareTransactionController::class, 'create']
+)->name('share-transactions.create');
+
+Route::post(
+    '/share-transactions',
+    [ShareTransactionController::class, 'store']
+)->name('share-transactions.store');
+
+
+/*
+|--------------------------------------------------------------------------
+| SHARE TRANSFER CREATE
+|--------------------------------------------------------------------------
+|
+| पुरानो URL राखिएको छ ताकि existing links नटुटून्।
+| Controller चाहिँ अब एउटै हो।
+|
+*/
+
 Route::get(
     '/share-transfers',
-    [ShareTransferController::class, 'index']
+    function () {
+        return redirect()->route(
+            'share-transactions.index',
+            ['type' => 'transfer']
+        );
+    }
 )->name('share-transfers.index');
 
 Route::get(
     '/share-transfers/create',
-    [ShareTransferController::class, 'create']
+    [ShareTransactionController::class, 'createTransfer']
 )->name('share-transfers.create');
 
 Route::post(
     '/share-transfers',
-    [ShareTransferController::class, 'store']
+    [ShareTransactionController::class, 'storeTransfer']
 )->name('share-transfers.store');
 
 Route::get(
     '/share-transfers/convert-date',
-    [ShareTransferController::class, 'convertDate']
+    [ShareTransactionController::class, 'convertDate']
 )->name('share-transfers.convert-date');
+
+
+/*
+|--------------------------------------------------------------------------
+| Attachments
+|--------------------------------------------------------------------------
+*/
+
 Route::get(
     '/share-transfers/{shareTransfer}/attachment',
     [PrivateFileController::class, 'shareTransfer']
 )->name('share-transfers.attachment');
+
+
+/*
+|--------------------------------------------------------------------------
+| Unified View / Edit / Update
+|--------------------------------------------------------------------------
+*/
+
+Route::get(
+    '/share-transactions/{shareTransaction}/edit',
+    [ShareTransactionController::class, 'edit']
+)->name('share-transactions.edit');
+
+Route::put(
+    '/share-transactions/{shareTransaction}',
+    [ShareTransactionController::class, 'update']
+)->name('share-transactions.update');
+
+Route::get(
+    '/share-transactions/{shareTransaction}',
+    [ShareTransactionController::class, 'show']
+)->name('share-transactions.show');
+
+
+/*
+|--------------------------------------------------------------------------
+| Cancel
+|--------------------------------------------------------------------------
+|
+| BUY/WITHDRAW मात्र अहिले cancel हुन्छ।
+| TRANSFER cancel Service तयार भएपछि यही route बाट handle हुनेछ।
+|
+*/
+
 Route::post(
     '/share-transactions/{shareTransaction}/cancel',
     [ShareTransactionController::class, 'cancel']
-)->middleware('permission:share-transaction.cancel')->name('share-transactions.cancel');
+)->name('share-transactions.cancel');
 
 
-Route::resource(
-    'share-transactions',
-    ShareTransactionController::class
-)->only([
-    'index',
-    'create',
-    'store',
-    'show',
-])
-    ->middlewareFor(['index', 'show'], 'permission:share-transaction.view')
-    ->middlewareFor(['create', 'store'], 'permission:share-transaction.create');
 Route::resource(
     'lenders',
     LenderController::class
@@ -412,10 +583,11 @@ Route::resource(
     'index',
     'create',
     'store',
+    'show',
     'edit',
     'update',
 ])
-    ->middlewareFor('index', 'permission:lender.view')
+    ->middlewareFor(['index', 'show'], 'permission:lender.view')
     ->middlewareFor(['create', 'store'], 'permission:lender.create')
     ->middlewareFor(['edit', 'update'], 'permission:lender.update');
 Route::get(

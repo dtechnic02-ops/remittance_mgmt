@@ -37,17 +37,17 @@
 
                         <tbody>
                             @forelse ($staffUsers as $staff)
-                                <tr class="border-b">
+                                <tr class="border-b align-middle">
 
-                                    <td class="px-4 py-3 font-medium">
+                                    <td class="whitespace-nowrap px-4 py-3 font-medium">
                                         {{ $staff->name }}
                                     </td>
 
-                                    <td class="px-4 py-3">
+                                    <td class="whitespace-nowrap px-4 py-3">
                                         {{ $staff->email }}
                                     </td>
 
-                                    <td class="px-4 py-3">
+                                    <td class="whitespace-nowrap px-4 py-3">
                                         @if ($staff->is_active)
                                             <span class="text-green-700 font-medium">
                                                 Active
@@ -59,20 +59,18 @@
                                         @endif
                                     </td>
 
-                                    <td class="px-4 py-3">
-                                        @forelse ($staff->permissions as $permission)
-                                            <span class="inline-block mr-2 mb-1 px-2 py-1 bg-gray-100 rounded text-xs">
-                                                {{ $permission->name }}
+                                    <td class="whitespace-nowrap px-4 py-3">
+                                        @if ($staff->permissions->isNotEmpty())
+                                            <span class="text-sm font-medium text-gray-700">
+                                                {{ $staff->permissions->count() }} Permissions
                                             </span>
-                                        @empty
-                                            <span class="text-sm text-gray-400">
-                                                No permissions assigned
-                                            </span>
-                                        @endforelse
+                                        @else
+                                            <span class="text-sm text-gray-400">No Permissions</span>
+                                        @endif
                                     </td>
 
-                                    <td class="px-4 py-3">
-                                        <div class="flex justify-end gap-3">
+                                    <td class="whitespace-nowrap px-4 py-3">
+                                        <div class="flex items-center justify-end gap-3">
 
                                             <a href="{{ route('staff.edit', $staff) }}"
                                                class="text-indigo-600">
