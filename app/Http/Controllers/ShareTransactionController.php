@@ -599,6 +599,12 @@ public function __construct(
                     'min:1',
                 ],
 
+                'per_kitta_value' => [
+                    'required',
+                    'integer',
+                    'min:1',
+                ],
+
                 'reference' => [
                     'nullable',
                     'string',
@@ -750,6 +756,12 @@ public function __construct(
             ],
 
             'kitta' => [
+                'required',
+                'integer',
+                'min:1',
+            ],
+
+            'per_kitta_value' => [
                 'required',
                 'integer',
                 'min:1',

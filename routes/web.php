@@ -426,6 +426,18 @@ Route::post(
     ->middleware('permission:shareholder.update')
     ->name('shareholders.cancel');
 
+Route::get('/shareholders/import', [ShareholderController::class, 'importCreate'])
+    ->middleware('permission:shareholder.create')
+    ->name('shareholders.import.create');
+
+Route::post('/shareholders/import', [ShareholderController::class, 'importStore'])
+    ->middleware('permission:shareholder.create')
+    ->name('shareholders.import.store');
+
+Route::get('/shareholders/import/template', [ShareholderController::class, 'importTemplate'])
+    ->middleware('permission:shareholder.create')
+    ->name('shareholders.import.template');
+
 Route::resource(
     'shareholders',
     ShareholderController::class

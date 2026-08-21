@@ -55,7 +55,7 @@ class ShareTransferService
             }
 
             $perKittaValue =
-                (int) $fromShareholder->per_kitta_value;
+                (int) ($data['per_kitta_value'] ?? 0);
 
             if ($perKittaValue <= 0) {
                 throw new RuntimeException(
@@ -63,17 +63,17 @@ class ShareTransferService
                 );
             }
 
-            if (
-                (int) $toShareholder->per_kitta_value
-                !== $perKittaValue
-            ) {
-                throw new RuntimeException(
-                    'Both shareholders must have the same per Kitta value.'
-                );
-            }
-
             $totalAmount =
                 $kitta * $perKittaValue;
+
+            if (
+                (int) $fromShareholder->total_investment
+                < $totalAmount
+            ) {
+                throw new RuntimeException(
+                    'Shareholder investment cannot become negative.'
+                );
+            }
 
             $transaction = ShareTransaction::create([
                 'transaction_number' =>
@@ -149,8 +149,14 @@ class ShareTransferService
             }
 
             $fromShareholder->total_investment =
-                (int) $fromShareholder->kitta
-                * (int) $fromShareholder->per_kitta_value;
+                (int) $fromShareholder->total_investment
+                - $totalAmount;
+
+            if ($fromShareholder->total_investment < 0) {
+                throw new RuntimeException(
+                    'Shareholder investment cannot become negative.'
+                );
+            }
 
             $fromShareholder->updated_by =
                 $data['created_by'];
@@ -168,8 +174,8 @@ class ShareTransferService
                 + $kitta;
 
             $toShareholder->total_investment =
-                (int) $toShareholder->kitta
-                * (int) $toShareholder->per_kitta_value;
+                (int) $toShareholder->total_investment
+                + $totalAmount;
 
             $toShareholder->updated_by =
                 $data['created_by'];
@@ -352,6 +358,9 @@ class ShareTransferService
             $kitta =
                 (int) $transaction->kitta;
 
+            $totalAmount =
+                (int) $transaction->total_amount;
+
             if ($kitta <= 0) {
                 throw new RuntimeException(
                     'Invalid transfer Kitta.'
@@ -377,6 +386,15 @@ class ShareTransferService
                 );
             }
 
+            if (
+                (int) $toShareholder->total_investment
+                < $totalAmount
+            ) {
+                throw new RuntimeException(
+                    'Share transfer cannot be cancelled because the receiving shareholder investment is too low.'
+                );
+            }
+
             /*
             |--------------------------------------------------------------------------
             | RETURN KITTA TO ORIGINAL FROM SHAREHOLDER
@@ -388,8 +406,8 @@ class ShareTransferService
                 + $kitta;
 
             $fromShareholder->total_investment =
-                (int) $fromShareholder->kitta
-                * (int) $fromShareholder->per_kitta_value;
+                (int) $fromShareholder->total_investment
+                + $totalAmount;
 
             if (
                 $fromShareholder->total_investment
@@ -422,8 +440,8 @@ class ShareTransferService
             }
 
             $toShareholder->total_investment =
-                (int) $toShareholder->kitta
-                * (int) $toShareholder->per_kitta_value;
+                (int) $toShareholder->total_investment
+                - $totalAmount;
 
             if (
                 $toShareholder->total_investment

@@ -60,6 +60,7 @@ class BusinessErrorHandlingTest extends TestCase
             'transaction_type' => 'withdraw', 'shareholder_id' => $shareholder->id,
             'account_id' => $account->id, 'date_ad' => '2026-08-13',
             'date_bs' => '2083-04-29', 'financial_year' => '2083/84',
+            'per_kitta_value' => 1000,
         ];
 
         $tooMany = $this->actingAs($admin)->from(route('share-transactions.create'))

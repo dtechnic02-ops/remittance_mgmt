@@ -7,10 +7,27 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class ShareholderController extends Controller
 {
+    public const IMPORT_HEADERS = [
+        'code',
+        'name',
+        'mobile',
+        'email',
+        'address',
+        'active',
+        'note',
+    ];
+
     public function index(Request $request)
     {
         $this->ensureAdminOrStaff();
@@ -62,10 +79,6 @@ class ShareholderController extends Controller
         */
 
         $shareholders = Shareholder::query()
-            ->withExists([
-                'shareTransactions as has_share_transactions',
-                'receivedShareTransfers as has_received_transfers',
-            ])
             ->when(
                 $status === 'active',
                 fn ($query) =>
@@ -225,7 +238,6 @@ class ShareholderController extends Controller
         */
 
         $validated['kitta'] = 0;
-        $validated['per_kitta_value'] = 1000;
         $validated['total_investment'] = 0;
 
         $validated['is_active'] =
@@ -316,7 +328,10 @@ class ShareholderController extends Controller
 
         return view(
             'shareholders.show',
-            compact('shareholder')
+            [
+                'shareholder' => $shareholder,
+                'canHardDelete' => $shareholder->canHardDelete(),
+            ]
         );
     }
 
@@ -526,6 +541,208 @@ class ShareholderController extends Controller
                 'success',
                 'Shareholder updated successfully.'
             );
+    }
+
+    public function importCreate()
+    {
+        return view('shareholders.import');
+    }
+
+    public function importTemplate(): BinaryFileResponse
+    {
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet()->setTitle('Shareholders');
+
+        foreach (self::IMPORT_HEADERS as $index => $header) {
+            $sheet->setCellValueExplicit(
+                [$index + 1, 1],
+                $header,
+                DataType::TYPE_STRING
+            );
+        }
+
+        $sheet->getStyle('A1:G1')->getFont()->setBold(true);
+        $sheet->freezePane('A2');
+
+        $instructions = $spreadsheet->createSheet()->setTitle('Instructions');
+        $instructions->fromArray([
+            ['Shareholder Import Instructions'],
+            ['Use the Shareholders sheet without renaming, adding, removing, or reordering headers.'],
+            ['code and name are required. Maximum 500 shareholders.'],
+            ['active accepts Yes, No, 1, 0, true, or false. Blank defaults to active.'],
+            ['Imported shareholders start with zero Kitta and zero investment.'],
+        ]);
+        $instructions->getColumnDimension('A')->setWidth(110);
+        $instructions->getStyle('A1')->getFont()->setBold(true);
+
+        $path = tempnam(sys_get_temp_dir(), 'shareholder-template-');
+        (new Xlsx($spreadsheet))->save($path);
+        $spreadsheet->disconnectWorksheets();
+
+        return response()
+            ->download($path, 'shareholder-import-template.xlsx')
+            ->deleteFileAfterSend(true);
+    }
+
+    public function importStore(Request $request)
+    {
+        $validated = $request->validate([
+            'file' => ['required', 'file', 'mimes:xlsx', 'max:5120'],
+        ]);
+
+        try {
+            $reader = IOFactory::createReaderForFile(
+                $validated['file']->getRealPath()
+            );
+
+            if (! $reader instanceof \PhpOffice\PhpSpreadsheet\Reader\Xlsx) {
+                throw new \RuntimeException('Unsupported workbook type.');
+            }
+
+            $reader->setReadDataOnly(true);
+            $spreadsheet = $reader->load(
+                $validated['file']->getRealPath()
+            );
+        } catch (\Throwable $exception) {
+            if ($exception instanceof ValidationException) {
+                throw $exception;
+            }
+
+            return back()->withErrors([
+                'file' => 'The uploaded file is not a valid XLSX workbook.',
+            ]);
+        }
+
+        $sheet = $spreadsheet->getSheetByName('Shareholders')
+            ?? $spreadsheet->getActiveSheet();
+        $highestColumn = $sheet->getHighestDataColumn();
+        $headers = array_map(
+            fn ($value) => trim((string) $value),
+            $sheet->rangeToArray(
+                "A1:{$highestColumn}1",
+                null,
+                true,
+                false
+            )[0] ?? []
+        );
+
+        if ($headers !== self::IMPORT_HEADERS) {
+            $spreadsheet->disconnectWorksheets();
+
+            return back()->withErrors([
+                'file' => 'Workbook headers do not exactly match the Shareholder Excel template.',
+            ]);
+        }
+
+        $rows = [];
+        for ($rowNumber = 2; $rowNumber <= $sheet->getHighestDataRow(); $rowNumber++) {
+            $values = $sheet->rangeToArray(
+                "A{$rowNumber}:G{$rowNumber}",
+                null,
+                true,
+                false
+            )[0];
+
+            if (collect($values)->every(fn ($value) => blank($value))) {
+                continue;
+            }
+
+            $rows[$rowNumber] = array_combine(
+                self::IMPORT_HEADERS,
+                array_map(
+                    fn ($value) => is_string($value) ? trim($value) : $value,
+                    $values
+                )
+            );
+        }
+        $spreadsheet->disconnectWorksheets();
+
+        if (count($rows) > 500) {
+            return back()->withErrors([
+                'file' => 'The workbook exceeds the maximum of 500 shareholders.',
+            ]);
+        }
+
+        $normalized = [];
+        $errors = [];
+        $workbookCodes = [];
+
+        foreach ($rows as $rowNumber => $row) {
+            $active = $this->normalizeImportActive($row['active']);
+
+            if ($active === null && filled($row['active'])) {
+                $errors[] = "Row {$rowNumber}: Invalid active value.";
+            }
+
+            $row['is_active'] = $active ?? true;
+            unset($row['active']);
+
+            $validator = Validator::make($row, [
+                'code' => ['required', 'string', 'max:50'],
+                'name' => ['required', 'string', 'max:150'],
+                'mobile' => ['nullable', 'string', 'max:30'],
+                'email' => ['nullable', 'email', 'max:150'],
+                'address' => ['nullable', 'string'],
+                'note' => ['nullable', 'string'],
+                'is_active' => ['required', 'boolean'],
+            ]);
+
+            foreach ($validator->errors()->all() as $message) {
+                $errors[] = "Row {$rowNumber}: {$message}";
+            }
+
+            if ($validator->fails()) {
+                continue;
+            }
+
+            $code = (string) $row['code'];
+            if (isset($workbookCodes[$code])) {
+                $errors[] = "Row {$rowNumber}: Shareholder code {$code} is duplicated in the workbook.";
+            }
+            if (Shareholder::query()->where('code', $code)->exists()) {
+                $errors[] = "Row {$rowNumber}: Shareholder code {$code} already exists.";
+            }
+            $workbookCodes[$code] = true;
+            $normalized[$rowNumber] = $row;
+        }
+
+        if ($errors) {
+            throw ValidationException::withMessages(['file' => $errors]);
+        }
+
+        DB::transaction(function () use ($normalized, $request) {
+            foreach ($normalized as $row) {
+                if (Shareholder::query()->lockForUpdate()->where('code', $row['code'])->exists()) {
+                    throw ValidationException::withMessages([
+                        'file' => "Shareholder code {$row['code']} already exists.",
+                    ]);
+                }
+
+                Shareholder::create($row + [
+                    'kitta' => 0,
+                    'total_investment' => 0,
+                    'created_by' => $request->user()->id,
+                    'updated_by' => $request->user()->id,
+                ]);
+            }
+        });
+
+        return redirect()
+            ->route('shareholders.index')
+            ->with('success', count($normalized).' shareholders imported successfully.');
+    }
+
+    private function normalizeImportActive(mixed $value): ?bool
+    {
+        if (blank($value)) {
+            return null;
+        }
+
+        return match (strtolower(trim((string) $value))) {
+            'yes', '1', 'true' => true,
+            'no', '0', 'false' => false,
+            default => null,
+        };
     }
 
     /*

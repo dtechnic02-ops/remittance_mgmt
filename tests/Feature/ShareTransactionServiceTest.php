@@ -52,6 +52,7 @@ class ShareTransactionServiceTest extends TestCase
             'date_bs' => '2083-04-28',
             'financial_year' => '2083/84',
             'kitta' => 2,
+            'per_kitta_value' => 1250,
             'reference' => 'BUY-TEST',
             'created_by' => $user->id,
         ]);
@@ -65,19 +66,21 @@ class ShareTransactionServiceTest extends TestCase
         );
 
         $this->assertSame(
-            2000,
+            2500,
             $shareholder->total_investment
         );
 
         $this->assertSame(
-            7000,
+            7500,
             $cash->current_balance
         );
 
         $this->assertSame(
-            2000,
+            2500,
             $transaction->total_amount
         );
+
+        $this->assertSame(1250, $transaction->per_kitta_value);
 
         $this->assertSame(
             'SHR-000001',
@@ -89,7 +92,7 @@ class ShareTransactionServiceTest extends TestCase
             'transaction_type' => 'share_transaction',
             'transaction_id' => $transaction->id,
             'direction' => 'increase',
-            'amount' => 2000,
+            'amount' => 2500,
             'component' => 'share_buy',
         ]);
     }
@@ -131,6 +134,7 @@ class ShareTransactionServiceTest extends TestCase
             'date_bs' => '2083-04-28',
             'financial_year' => '2083/84',
             'kitta' => 2,
+            'per_kitta_value' => 750,
             'reference' => 'WITHDRAW-TEST',
             'created_by' => $user->id,
         ]);
@@ -144,17 +148,17 @@ class ShareTransactionServiceTest extends TestCase
         );
 
         $this->assertSame(
-            3000,
+            3500,
             $shareholder->total_investment
         );
 
         $this->assertSame(
-            8000,
+            8500,
             $bank->current_balance
         );
 
         $this->assertSame(
-            2000,
+            1500,
             $transaction->total_amount
         );
 
@@ -163,7 +167,7 @@ class ShareTransactionServiceTest extends TestCase
             'transaction_type' => 'share_transaction',
             'transaction_id' => $transaction->id,
             'direction' => 'decrease',
-            'amount' => 2000,
+            'amount' => 1500,
             'component' => 'share_withdraw',
         ]);
     }
@@ -205,6 +209,7 @@ class ShareTransactionServiceTest extends TestCase
             'date_bs' => '2083-04-28',
             'financial_year' => '2083/84',
             'kitta' => 2,
+            'per_kitta_value' => 750,
             'created_by' => $user->id,
         ]);
 
@@ -282,6 +287,7 @@ class ShareTransactionServiceTest extends TestCase
                 'date_bs' => '2083-04-28',
                 'financial_year' => '2083/84',
                 'kitta' => 3,
+                'per_kitta_value' => 1000,
                 'created_by' => $user->id,
             ]);
 
@@ -356,6 +362,7 @@ class ShareTransactionServiceTest extends TestCase
                 'date_bs' => '2083-04-28',
                 'financial_year' => '2083/84',
                 'kitta' => 2,
+                'per_kitta_value' => 1000,
                 'created_by' => $user->id,
             ]);
         } finally {
@@ -420,7 +427,70 @@ class ShareTransactionServiceTest extends TestCase
             'date_bs' => '2083-04-28',
             'financial_year' => '2083/84',
             'kitta' => 1,
+            'per_kitta_value' => 1000,
             'created_by' => $user->id,
         ]);
+    }
+
+    public function test_second_buy_can_use_a_different_manual_per_kitta_value(): void
+    {
+        $user = User::factory()->create();
+        $shareholder = Shareholder::create([
+            'code' => 'SH-002', 'name' => 'Variable Value', 'kitta' => 0,
+            'per_kitta_value' => 9999, 'total_investment' => 0,
+            'is_active' => true, 'created_by' => $user->id, 'updated_by' => $user->id,
+        ]);
+        $cash = Account::create([
+            'name' => 'Cash', 'code' => 'CASH02', 'type' => Account::TYPE_CASH,
+            'opening_balance' => 0, 'current_balance' => 0, 'allow_negative' => false,
+            'is_active' => true, 'created_by' => $user->id, 'updated_by' => $user->id,
+        ]);
+        $service = app(ShareTransactionService::class);
+        $base = [
+            'transaction_type' => ShareTransaction::TYPE_BUY,
+            'shareholder_id' => $shareholder->id, 'account_id' => $cash->id,
+            'date_ad' => '2026-08-12', 'date_bs' => '2083-04-28',
+            'financial_year' => '2083/84', 'created_by' => $user->id,
+        ];
+
+        $first = $service->create($base + ['kitta' => 2, 'per_kitta_value' => 600]);
+        $second = $service->create($base + ['kitta' => 3, 'per_kitta_value' => 800]);
+
+        $this->assertSame(1200, $first->total_amount);
+        $this->assertSame(2400, $second->total_amount);
+        $this->assertSame(5, $shareholder->fresh()->kitta);
+        $this->assertSame(3600, $shareholder->fresh()->total_investment);
+        $this->assertSame(3600, $cash->fresh()->current_balance);
+    }
+
+    public function test_withdraw_is_blocked_when_manual_value_would_make_investment_negative(): void
+    {
+        $user = User::factory()->create();
+        $shareholder = Shareholder::create([
+            'code' => 'SH-003', 'name' => 'Low Investment', 'kitta' => 5,
+            'per_kitta_value' => 1000, 'total_investment' => 500,
+            'is_active' => true, 'created_by' => $user->id, 'updated_by' => $user->id,
+        ]);
+        $cash = Account::create([
+            'name' => 'Cash', 'code' => 'CASH03', 'type' => Account::TYPE_CASH,
+            'opening_balance' => 5000, 'current_balance' => 5000, 'allow_negative' => false,
+            'is_active' => true, 'created_by' => $user->id, 'updated_by' => $user->id,
+        ]);
+
+        $this->expectException(RuntimeException::class);
+
+        try {
+            app(ShareTransactionService::class)->create([
+                'transaction_type' => ShareTransaction::TYPE_WITHDRAW,
+                'shareholder_id' => $shareholder->id, 'account_id' => $cash->id,
+                'date_ad' => '2026-08-12', 'date_bs' => '2083-04-28',
+                'financial_year' => '2083/84', 'kitta' => 1,
+                'per_kitta_value' => 600, 'created_by' => $user->id,
+            ]);
+        } finally {
+            $this->assertSame(5, $shareholder->fresh()->kitta);
+            $this->assertSame(500, $shareholder->fresh()->total_investment);
+            $this->assertDatabaseCount('share_transactions', 0);
+        }
     }
 }

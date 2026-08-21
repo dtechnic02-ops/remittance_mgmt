@@ -60,12 +60,8 @@ class ShareTransactionService
                 );
             }
 
-            /*
-             * Per Kitta Value shareholder master बाट लिने।
-             * User ले transaction form बाट value परिवर्तन गर्न पाउँदैन।
-             */
             $perKittaValue =
-                (int) $shareholder->per_kitta_value;
+                (int) ($data['per_kitta_value'] ?? 0);
 
             if ($perKittaValue <= 0) {
                 throw new RuntimeException(
@@ -80,6 +76,12 @@ class ShareTransactionService
                 if ((int) $shareholder->kitta < $kitta) {
                     throw new RuntimeException(
                         'Shareholder does not have enough Kitta to withdraw.'
+                    );
+                }
+
+                if ((int) $shareholder->total_investment < $totalAmount) {
+                    throw new RuntimeException(
+                        'Shareholder investment cannot become negative.'
                     );
                 }
             }

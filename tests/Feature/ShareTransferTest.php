@@ -73,6 +73,7 @@ class ShareTransferTest extends TestCase
             'date_bs' => '2000-01-01',
             'financial_year' => '2000/01',
             'kitta' => 3,
+            'per_kitta_value' => 700,
         ]);
 
         $transfer = ShareTransaction::where('transaction_type', ShareTransaction::TYPE_TRANSFER)->firstOrFail();
@@ -135,15 +136,17 @@ class ShareTransferTest extends TestCase
         $cash = $this->account('TRANSFER-CASH', Account::TYPE_CASH, 5000);
         $bank = $this->account('TRANSFER-BANK', Account::TYPE_BANK, 9000);
 
-        $transfer = $this->transfer($sender, $receiver, 2, $admin);
+        $transfer = $this->transfer($sender, $receiver, 2, $admin, 750);
 
         $this->assertNull($transfer->account_id);
         $this->assertSame('SHR-'.str_pad((string) $transfer->id, 6, '0', STR_PAD_LEFT), $transfer->transaction_number);
         $this->assertSame(5000, $cash->fresh()->current_balance);
         $this->assertSame(9000, $bank->fresh()->current_balance);
         $this->assertDatabaseCount('ledger_entries', 0);
-        $this->assertSame(6000, $sender->fresh()->total_investment);
-        $this->assertSame(3000, $receiver->fresh()->total_investment);
+        $this->assertSame(6500, $sender->fresh()->total_investment);
+        $this->assertSame(2500, $receiver->fresh()->total_investment);
+        $this->assertSame(750, $transfer->per_kitta_value);
+        $this->assertSame(1500, $transfer->total_amount);
     }
 
     public function test_transfer_appears_in_unified_history_and_nullable_account_detail_is_safe(): void
@@ -174,7 +177,7 @@ class ShareTransferTest extends TestCase
         $admin = $this->user('admin', 'cancel-transfer@example.test');
         $sender = $this->shareholder(null, 'CANCEL-FROM', 6);
         $receiver = $this->shareholder(null, 'CANCEL-TO', 2);
-        $transfer = $this->transfer($sender, $receiver, 2, $admin);
+        $transfer = $this->transfer($sender, $receiver, 2, $admin, 650);
 
         $this->actingAs($admin)
             ->from(route('share-transactions.show', $transfer))
@@ -185,6 +188,8 @@ class ShareTransferTest extends TestCase
         $this->assertSame('cancelled', $transfer->fresh()->status);
         $this->assertSame(6, $sender->fresh()->kitta);
         $this->assertSame(2, $receiver->fresh()->kitta);
+        $this->assertSame(6000, $sender->fresh()->total_investment);
+        $this->assertSame(2000, $receiver->fresh()->total_investment);
         $this->assertDatabaseCount('ledger_entries', 0);
     }
 
@@ -215,17 +220,32 @@ class ShareTransferTest extends TestCase
         $this->actingAs($staff)->get(route('share-transfers.attachment', $transfer))->assertOk();
     }
 
-    private function transfer(Shareholder $from, Shareholder $to, int $kitta, User $actor): ShareTransaction
+    private function transfer(
+        Shareholder $from,
+        Shareholder $to,
+        int $kitta,
+        User $actor,
+        int $perKittaValue = 1000
+    ): ShareTransaction
     {
-        return app(ShareTransferService::class)->create($this->payload($from->id, $to->id, $kitta, $actor));
+        return app(ShareTransferService::class)->create(
+            $this->payload($from->id, $to->id, $kitta, $actor, $perKittaValue)
+        );
     }
 
-    private function payload(int $from, int $to, int $kitta, User $actor): array
+    private function payload(
+        int $from,
+        int $to,
+        int $kitta,
+        User $actor,
+        int $perKittaValue = 1000
+    ): array
     {
         return [
             'shareholder_id' => $from, 'to_shareholder_id' => $to,
             'date_ad' => '2026-08-18', 'date_bs' => '2083-05-02',
             'financial_year' => '2083/84', 'kitta' => $kitta,
+            'per_kitta_value' => $perKittaValue,
             'created_by' => $actor->id,
         ];
     }

@@ -176,7 +176,6 @@
                                     value="{{ $fromShareholder->id }}"
                                     data-kitta="{{ $fromShareholder->kitta }}"
                                     data-investment="{{ $fromShareholder->total_investment }}"
-                                    data-per-kitta="{{ $fromShareholder->per_kitta_value }}"
                                 >
 
                                 <input
@@ -204,7 +203,6 @@
                                             value="{{ $shareholder->id }}"
                                             data-kitta="{{ $shareholder->kitta }}"
                                             data-investment="{{ $shareholder->total_investment }}"
-                                            data-per-kitta="{{ $shareholder->per_kitta_value }}"
                                             @selected(
                                                 old('shareholder_id')
                                                 == $shareholder->id
@@ -329,11 +327,14 @@
                             </label>
 
                             <input
-                                type="text"
+                                type="number"
                                 id="per_kitta_value"
-                                value="0"
-                                readonly
-                                class="mt-1 block w-full rounded-md border-gray-300 bg-gray-50 shadow-sm"
+                                name="per_kitta_value"
+                                value="{{ old('per_kitta_value') }}"
+                                min="1"
+                                step="1"
+                                required
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
                             >
 
                         </div>
@@ -1002,9 +1003,6 @@
                         currentInvestment.value =
                             '0';
 
-                        perKittaValue.value =
-                            '0';
-
                         updateTotal();
 
                         updateToShareholderOptions();
@@ -1026,22 +1024,11 @@
                             10
                         );
 
-                    const perKitta =
-                        parseInt(
-                            option.dataset.perKitta || 0,
-                            10
-                        );
-
-
                     currentKitta.value =
                         kittaValue.toLocaleString();
 
                     currentInvestment.value =
                         investment.toLocaleString();
-
-                    perKittaValue.value =
-                        perKitta.toLocaleString();
-
 
                     updateTotal();
 
@@ -1088,17 +1075,11 @@
 
                 function updateTotal() {
 
-                    const option =
-                        selectedShareholderOption();
-
                     const perKitta =
-                        option
-                        && option.value
-                        ? parseInt(
-                            option.dataset.perKitta || 0,
+                        parseInt(
+                            perKittaValue.value || 0,
                             10
-                        )
-                        : 0;
+                        );
 
                     const quantity =
                         parseInt(
@@ -1227,6 +1208,11 @@
 
 
                 kitta.addEventListener(
+                    'input',
+                    updateTotal
+                );
+
+                perKittaValue.addEventListener(
                     'input',
                     updateTotal
                 );

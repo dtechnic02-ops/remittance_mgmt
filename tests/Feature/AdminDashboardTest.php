@@ -149,7 +149,7 @@ class AdminDashboardTest extends TestCase
     {
         return ['transaction_type' => $type, 'shareholder_id' => $shareholder->id, 'account_id' => $account->id,
             'date_ad' => now()->toDateString(), 'date_bs' => '2083-04-29', 'financial_year' => $fy,
-            'kitta' => $kitta, 'created_by' => $user->id];
+            'kitta' => $kitta, 'per_kitta_value' => 1000, 'created_by' => $user->id];
     }
 
     private function incomeData(User $user, IncomeCategory $category, Account $account, string $fy, int $amount, string $status): array

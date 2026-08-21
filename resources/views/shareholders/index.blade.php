@@ -13,12 +13,22 @@
                 </p>
             </div>
 
-            <a
-                href="{{ route('shareholders.create') }}"
-                class="inline-flex items-center justify-center rounded-md bg-gray-800 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-700"
-            >
-                + New Shareholder
-            </a>
+            @if (auth()->user()->hasPermission('shareholder.create'))
+                <div class="flex flex-wrap items-center gap-3">
+                    <a href="{{ route('shareholders.import.template') }}" class="text-sm text-gray-600 hover:underline">
+                        Download Template
+                    </a>
+                    <a href="{{ route('shareholders.import.create') }}" class="text-sm text-gray-600 hover:underline">
+                        Import Shareholders
+                    </a>
+                    <a
+                        href="{{ route('shareholders.create') }}"
+                        class="inline-flex items-center justify-center rounded-md bg-gray-800 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-700"
+                    >
+                        + New Shareholder
+                    </a>
+                </div>
+            @endif
 
         </div>
     </x-slot>
@@ -349,10 +359,6 @@
                             <tr class="border-b bg-gray-50 text-left text-sm text-gray-600">
 
                                 <th class="whitespace-nowrap px-4 py-3">
-                                    Photo
-                                </th>
-
-                                <th class="whitespace-nowrap px-4 py-3">
                                     Code
                                 </th>
 
@@ -360,24 +366,12 @@
                                     Name
                                 </th>
 
-                                <th class="whitespace-nowrap px-4 py-3">
-                                    Mobile
-                                </th>
-
-                                <th class="whitespace-nowrap px-4 py-3">
-                                    Email
-                                </th>
-
-                                <th class="px-4 py-3">
-                                    Address
-                                </th>
-
                                 <th class="whitespace-nowrap px-4 py-3 text-right">
                                     Kitta
                                 </th>
 
                                 <th class="whitespace-nowrap px-4 py-3 text-right">
-                                    Per Kitta
+                                    Current Investment
                                 </th>
 
                                 <th class="whitespace-nowrap px-4 py-3">
@@ -397,54 +391,7 @@
 
                             @forelse ($shareholders as $shareholder)
 
-                                @php
-                                    $hasHistory =
-                                        (bool) $shareholder->has_share_transactions
-                                        || (bool) $shareholder->has_received_transfers;
-
-                                    $canHardDelete =
-                                        ! $hasHistory
-                                        && (int) $shareholder->kitta === 0
-                                        && (int) $shareholder->total_investment === 0;
-                                @endphp
-
-
                                 <tr class="hover:bg-gray-50">
-
-
-                                    {{-- Photo --}}
-                                    <td class="px-4 py-3">
-
-                                        @if ($shareholder->photo)
-
-                                            <img
-                                                src="{{ route(
-                                                    'shareholders.documents.show',
-                                                    [$shareholder, 'photo']
-                                                ) }}"
-                                                alt="{{ $shareholder->name }}"
-                                                class="h-11 w-11 rounded-full border object-cover"
-                                            >
-
-                                        @else
-
-                                            <div class="flex h-11 w-11 items-center justify-center rounded-full border bg-gray-100 font-semibold text-gray-500">
-
-                                                {{
-                                                    strtoupper(
-                                                        substr(
-                                                            $shareholder->name,
-                                                            0,
-                                                            1
-                                                        )
-                                                    )
-                                                }}
-
-                                            </div>
-
-                                        @endif
-
-                                    </td>
 
 
                                     {{-- Code --}}
@@ -459,48 +406,15 @@
                                     </td>
 
 
-                                    {{-- Mobile --}}
-                                    <td class="whitespace-nowrap px-4 py-3">
-                                        {{ $shareholder->mobile ?: '-' }}
-                                    </td>
-
-
-                                    {{-- Email --}}
-                                    <td class="px-4 py-3">
-                                        {{ $shareholder->email ?: '-' }}
-                                    </td>
-
-
-                                    {{-- Address --}}
-                                    <td class="min-w-[160px] px-4 py-3">
-
-                                        {{
-                                            $shareholder->address
-                                                ? \Illuminate\Support\Str::limit(
-                                                    $shareholder->address,
-                                                    35
-                                                )
-                                                : '-'
-                                        }}
-
-                                    </td>
-
-
                                     {{-- Kitta --}}
                                     <td class="whitespace-nowrap px-4 py-3 text-right font-semibold">
                                         {{ number_format($shareholder->kitta) }}
                                     </td>
 
 
-                                    {{-- Per Kitta --}}
+                                    {{-- Current Investment --}}
                                     <td class="whitespace-nowrap px-4 py-3 text-right">
-
-                                        {{
-                                            number_format(
-                                                $shareholder->per_kitta_value
-                                            )
-                                        }}
-
+                                        {{ number_format($shareholder->total_investment) }}
                                     </td>
 
 
@@ -527,74 +441,12 @@
                                     {{-- Actions --}}
                                     <td class="whitespace-nowrap px-4 py-3 text-right">
 
-                                        <div class="flex items-center justify-end gap-3">
-
-
-                                            {{-- View --}}
-                                            <a
-                                                href="{{ route(
-                                                    'shareholders.show',
-                                                    $shareholder
-                                                ) }}"
-                                                class="text-sm font-medium text-blue-600 hover:underline"
-                                            >
-                                                View
-                                            </a>
-
-
-                                            {{-- Hard Delete:
-                                                 Only when completely unused --}}
-                                            @if ($canHardDelete)
-
-                                                <form
-                                                    method="POST"
-                                                    action="{{ route(
-                                                        'shareholders.destroy',
-                                                        $shareholder
-                                                    ) }}"
-                                                    onsubmit="return confirm('Permanently delete this unused shareholder? This action cannot be undone.');"
-                                                >
-
-                                                    @csrf
-                                                    @method('DELETE')
-
-                                                    <button
-                                                        type="submit"
-                                                        class="text-sm font-medium text-red-600 hover:underline"
-                                                    >
-                                                        Delete
-                                                    </button>
-
-                                                </form>
-
-
-                                            {{-- Cancel:
-                                                 Used shareholder keeps history --}}
-                                            @elseif ($shareholder->is_active)
-
-                                                <form
-                                                    method="POST"
-                                                    action="{{ route(
-                                                        'shareholders.cancel',
-                                                        $shareholder
-                                                    ) }}"
-                                                    onsubmit="return confirm('Cancel this shareholder? Historical records will remain unchanged.');"
-                                                >
-
-                                                    @csrf
-
-                                                    <button
-                                                        type="submit"
-                                                        class="text-sm font-medium text-orange-600 hover:underline"
-                                                    >
-                                                        Cancel
-                                                    </button>
-
-                                                </form>
-
-                                            @endif
-
-                                        </div>
+                                        <a
+                                            href="{{ route('shareholders.show', $shareholder) }}"
+                                            class="text-sm font-medium text-blue-600 hover:underline"
+                                        >
+                                            View
+                                        </a>
 
                                     </td>
 
@@ -606,7 +458,7 @@
                                 <tr>
 
                                     <td
-                                        colspan="10"
+                                        colspan="6"
                                         class="px-4 py-12 text-center text-gray-500"
                                     >
                                         No shareholders found.

@@ -20,10 +20,29 @@
         </a>
     @endif
 
-    <a href="{{ route('shareholders.edit', $shareholder) }}"
-       class="px-4 py-2 bg-gray-800 text-white rounded-md">
-        Edit
-    </a>
+    @if (auth()->user()->hasPermission('shareholder.update'))
+        @if ($shareholder->is_active)
+            <a href="{{ route('shareholders.edit', $shareholder) }}"
+               class="px-4 py-2 bg-gray-800 text-white rounded-md">
+                Edit
+            </a>
+        @endif
+
+        @if ($canHardDelete)
+            <form method="POST" action="{{ route('shareholders.destroy', $shareholder) }}"
+                  onsubmit="return confirm('Permanently delete this unused shareholder?');">
+                @csrf
+                @method('DELETE')
+                <button class="px-4 py-2 bg-red-600 text-white rounded-md">Delete</button>
+            </form>
+        @elseif ($shareholder->is_active)
+            <form method="POST" action="{{ route('shareholders.cancel', $shareholder) }}"
+                  onsubmit="return confirm('Cancel this shareholder? Historical records will remain unchanged.');">
+                @csrf
+                <button class="px-4 py-2 bg-orange-600 text-white rounded-md">Cancel</button>
+            </form>
+        @endif
+    @endif
 
     <a href="{{ route('shareholders.index') }}"
        class="px-4 py-2 border border-gray-300 rounded-md text-gray-700">
@@ -185,7 +204,7 @@
 
                 <div class="p-6">
 
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
                         <div class="rounded-md bg-gray-50 p-5">
 
@@ -202,18 +221,6 @@
                         <div class="rounded-md bg-gray-50 p-5">
 
                             <div class="text-sm text-gray-500">
-                                Per Kitta Value
-                            </div>
-
-                            <div class="mt-2 text-2xl font-bold text-gray-900">
-                                {{ number_format($shareholder->per_kitta_value) }}
-                            </div>
-
-                        </div>
-
-                        <div class="rounded-md bg-gray-50 p-5">
-
-                            <div class="text-sm text-gray-500">
                                 Total Investment
                             </div>
 
@@ -223,11 +230,6 @@
 
                         </div>
 
-                    </div>
-
-                    <div class="mt-4 text-xs text-gray-500">
-                        Total Investment =
-                        Kitta × Per Kitta Value
                     </div>
 
                 </div>
