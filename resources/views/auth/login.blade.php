@@ -611,9 +611,18 @@
                             <div class="login-error">{{ $message }}</div>
                         @enderror
 
-                        <button class="login-btn" type="submit">
-                            Login
-                        </button>
+                        <div style="display:flex; align-items:center; gap:12px; margin-top:12px;">
+    <button class="login-btn" type="submit">
+        Login
+    </button>
+
+    <a
+        href="{{ route('password.request') }}"
+        style="font-size:13px; color:#dc2626; text-decoration:none;"
+    >
+        Password Reset
+    </a>
+</div>
                     </form>
                 </div>
 
