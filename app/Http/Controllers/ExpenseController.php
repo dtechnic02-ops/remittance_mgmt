@@ -6,6 +6,7 @@ use App\Models\Account;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Services\ExpenseService;
+use App\Services\IncomeExpenseImportService;
 use App\Services\FinancialDateService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -13,8 +14,59 @@ use Illuminate\Support\Facades\Storage;
 class ExpenseController extends Controller
 {
     public function __construct(
-        private readonly ExpenseService $service
+        private readonly ExpenseService $service,
+        private readonly IncomeExpenseImportService $importService
     ) {
+    }
+
+    public function importCreate()
+    {
+        $this->ensureAdminOrStaff();
+
+        return view('expenses.import');
+    }
+
+    public function importTemplate()
+    {
+        $this->ensureAdminOrStaff();
+
+        return $this->importService->template('expense');
+    }
+
+    public function importPreview(Request $request)
+    {
+        $this->ensureAdminOrStaff();
+        $request->session()->forget('expense_import_rows');
+        $validated = $request->validate([
+            'file' => ['required', 'file', 'mimes:xlsx', 'max:5120'],
+        ]);
+        $rows = $this->importService->validateWorkbook($validated['file'], 'expense');
+        $request->session()->put('expense_import_rows', $rows);
+
+        return view('expenses.import-preview', compact('rows'));
+    }
+
+    public function importConfirm(Request $request)
+    {
+        $this->ensureAdminOrStaff();
+        $rows = $request->session()->get('expense_import_rows');
+
+        if (! is_array($rows) || $rows === []) {
+            return redirect()->route('expenses.import.create')->withErrors([
+                'file' => 'Upload and preview an Expense workbook before confirming.',
+            ]);
+        }
+
+        try {
+            $count = $this->importService->post('expense', $rows, $request->user()->id);
+        } catch (\RuntimeException $exception) {
+            return back()->withErrors(['file' => $exception->getMessage()]);
+        }
+
+        $request->session()->forget('expense_import_rows');
+
+        return redirect()->route('expenses.index')
+            ->with('success', $count.' expense transactions imported successfully.');
     }
 
     public function index(Request $request)

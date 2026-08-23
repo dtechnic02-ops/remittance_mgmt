@@ -337,6 +337,15 @@ Route::get(
     [ExpenseController::class, 'create']
 )->middleware('permission:expense.create')->name('expenses.create');
 
+Route::get('/expenses/import', [ExpenseController::class, 'importCreate'])
+    ->middleware('permission:expense.create')->name('expenses.import.create');
+Route::post('/expenses/import/preview', [ExpenseController::class, 'importPreview'])
+    ->middleware('permission:expense.create')->name('expenses.import.preview');
+Route::post('/expenses/import/confirm', [ExpenseController::class, 'importConfirm'])
+    ->middleware('permission:expense.create')->name('expenses.import.confirm');
+Route::get('/expenses/import/template', [ExpenseController::class, 'importTemplate'])
+    ->middleware('permission:expense.create')->name('expenses.import.template');
+
 Route::post(
     '/expenses',
     [ExpenseController::class, 'store']
@@ -387,6 +396,15 @@ Route::get(
     '/incomes/create',
     [IncomeController::class, 'create']
 )->middleware('permission:income.create')->name('incomes.create');
+
+Route::get('/incomes/import', [IncomeController::class, 'importCreate'])
+    ->middleware('permission:income.create')->name('incomes.import.create');
+Route::post('/incomes/import/preview', [IncomeController::class, 'importPreview'])
+    ->middleware('permission:income.create')->name('incomes.import.preview');
+Route::post('/incomes/import/confirm', [IncomeController::class, 'importConfirm'])
+    ->middleware('permission:income.create')->name('incomes.import.confirm');
+Route::get('/incomes/import/template', [IncomeController::class, 'importTemplate'])
+    ->middleware('permission:income.create')->name('incomes.import.template');
 
 Route::post(
     '/incomes',

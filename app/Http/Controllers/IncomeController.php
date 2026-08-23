@@ -6,6 +6,7 @@ use App\Models\Account;
 use App\Models\Income;
 use App\Models\IncomeCategory;
 use App\Services\IncomeService;
+use App\Services\IncomeExpenseImportService;
 use App\Services\FinancialDateService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -13,8 +14,59 @@ use Illuminate\Support\Facades\Storage;
 class IncomeController extends Controller
 {
     public function __construct(
-        private readonly IncomeService $service
+        private readonly IncomeService $service,
+        private readonly IncomeExpenseImportService $importService
     ) {
+    }
+
+    public function importCreate()
+    {
+        $this->ensureAdminOrStaff();
+
+        return view('incomes.import');
+    }
+
+    public function importTemplate()
+    {
+        $this->ensureAdminOrStaff();
+
+        return $this->importService->template('income');
+    }
+
+    public function importPreview(Request $request)
+    {
+        $this->ensureAdminOrStaff();
+        $request->session()->forget('income_import_rows');
+        $validated = $request->validate([
+            'file' => ['required', 'file', 'mimes:xlsx', 'max:5120'],
+        ]);
+        $rows = $this->importService->validateWorkbook($validated['file'], 'income');
+        $request->session()->put('income_import_rows', $rows);
+
+        return view('incomes.import-preview', compact('rows'));
+    }
+
+    public function importConfirm(Request $request)
+    {
+        $this->ensureAdminOrStaff();
+        $rows = $request->session()->get('income_import_rows');
+
+        if (! is_array($rows) || $rows === []) {
+            return redirect()->route('incomes.import.create')->withErrors([
+                'file' => 'Upload and preview an Income workbook before confirming.',
+            ]);
+        }
+
+        try {
+            $count = $this->importService->post('income', $rows, $request->user()->id);
+        } catch (\RuntimeException $exception) {
+            return back()->withErrors(['file' => $exception->getMessage()]);
+        }
+
+        $request->session()->forget('income_import_rows');
+
+        return redirect()->route('incomes.index')
+            ->with('success', $count.' income transactions imported successfully.');
     }
 public function index(Request $request)
 {

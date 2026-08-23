@@ -15,6 +15,13 @@
                 @endif
 
                 @if (auth()->user()->isAdmin() || auth()->user()->hasPermission('expense.create'))
+                    <a href="{{ route('expenses.import.template') }}" class="text-sm text-gray-600 hover:underline">
+                        Download Template
+                    </a>
+                    <a href="{{ route('expenses.import.create') }}"
+                       class="inline-flex items-center justify-center rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        Import Expense
+                    </a>
                     <a href="{{ route('expenses.create') }}"
                        class="inline-flex items-center justify-center rounded-md bg-gray-800 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-700">
                         + New Expense

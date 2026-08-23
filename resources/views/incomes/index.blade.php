@@ -36,6 +36,14 @@
                     || auth()->user()->hasPermission('income.create')
                 )
 
+                    <a href="{{ route('incomes.import.template') }}" class="text-sm text-gray-600 hover:underline">
+                        Download Template
+                    </a>
+
+                    <a href="{{ route('incomes.import.create') }}" class="inline-flex items-center justify-center rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        Import Income
+                    </a>
+
                     <a
                         href="{{ route('incomes.create') }}"
                         class="inline-flex items-center justify-center rounded-md bg-gray-800 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-700"
