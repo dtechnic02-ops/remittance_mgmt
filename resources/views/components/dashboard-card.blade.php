@@ -1,4 +1,4 @@
-@props(['title', 'value', 'featured' => false, 'negative' => false])
+@props(['title', 'value', 'featured' => false, 'negative' => false, 'detail' => null])
 
 <div @class([
     'rounded-lg border p-5 shadow-sm',
@@ -11,4 +11,7 @@
         'text-red-700' => $negative,
         'text-gray-900' => ! $negative,
     ])>{{ $value }}</p>
+    @if ($detail)
+        <p class="mt-1 text-xs font-medium tabular-nums text-red-600">{{ $detail }}</p>
+    @endif
 </div>

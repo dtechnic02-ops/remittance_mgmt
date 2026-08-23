@@ -57,6 +57,9 @@ $this->assertSame(
         $this->assertSame(1500, $staffSummary['commission']);
         $this->assertSame(12000, $staffSummary['expense']);
         $this->assertSame(-900, $staffSummary['profit_loss']);
+        $this->assertSame(12600, $staffSummary['overall_income']);
+        $this->assertSame(1900, $staffSummary['overall_commission']);
+        $this->assertSame(-500, $staffSummary['overall_profit_loss']);
         $this->assertSame(7000, $staffSummary['borrowing_outstanding']);
         $this->assertSame($financialYear, $staffResponse->viewData('financialYear'));
         $this->assertSame($staffSummary['cash'] + $staffSummary['bank'], $staffSummary['available']);
@@ -64,6 +67,10 @@ $this->assertSame(
             $staffSummary['income'] + $staffSummary['commission'] - $staffSummary['expense'],
             $staffSummary['profit_loss']
         );
+        $staffResponse
+            ->assertSee('Overall: Rs. 12,600')
+            ->assertSee('Overall: Rs. 1,900')
+            ->assertSee('Overall Loss: Rs. 500');
     }
 
     public function test_monthly_chart_uses_all_nepali_fy_months_and_reconciles_to_annual_totals(): void
@@ -182,6 +189,14 @@ $this->assertSame(
         $this->remittance($admin, $customer, $remittance, $cash, $financialYear, "{$startYear}-04-15", 1000, 'active');
         $this->remittance($admin, $customer, $remittance, $cash, $financialYear, "{$startYear}-05-15", 500, 'active');
         $this->remittance($admin, $customer, $remittance, $cash, $financialYear, "{$startYear}-05-16", 700, 'cancelled');
+
+        $priorFinancialYear = ($startYear - 1).'/'.substr((string) $startYear, -2);
+        $this->income($admin, $incomeCategory, $cash, $priorFinancialYear, ($startYear - 1).'-04-10', 3000, 'active');
+        $this->income($admin, $incomeCategory, $cash, $priorFinancialYear, ($startYear - 1).'-04-11', 9000, 'cancelled');
+        $this->expense($admin, $expenseCategory, $cash, $priorFinancialYear, ($startYear - 1).'-04-12', 3000, 'active');
+        $this->expense($admin, $expenseCategory, $cash, $priorFinancialYear, ($startYear - 1).'-04-13', 9000, 'cancelled');
+        $this->remittance($admin, $customer, $remittance, $cash, $priorFinancialYear, ($startYear - 1).'-04-15', 400, 'active');
+        $this->remittance($admin, $customer, $remittance, $cash, $priorFinancialYear, ($startYear - 1).'-04-16', 900, 'cancelled');
 
         $lender = Lender::create([
             'code' => 'LND-1', 'name' => 'Lender', 'is_active' => true,

@@ -368,6 +368,13 @@ public function index(Request $request)
     |--------------------------------------------------------------------------
     */
 
+    $filteredSummary = (clone $query)
+        ->selectRaw('COUNT(*) as total_records, COALESCE(SUM(amount), 0) as total_amount')
+        ->first();
+
+    $totalRecords = (int) $filteredSummary->total_records;
+    $totalAmount = (int) $filteredSummary->total_amount;
+
     $incomes =
         $query
             ->orderByDesc('date_ad')
@@ -389,7 +396,9 @@ public function index(Request $request)
             'currentFinancialYear',
             'status',
             'dateFrom',
-            'dateTo'
+            'dateTo',
+            'totalRecords',
+            'totalAmount'
         )
     );
 }

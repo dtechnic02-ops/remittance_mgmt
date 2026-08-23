@@ -43,6 +43,9 @@ class HelpDeskDashboardController extends Controller
             ->where('status', 'active')
             ->where('financial_year', $financialYear)
             ->sum('amount');
+        $overallIncome = (int) Income::query()->where('status', 'active')->sum('amount');
+        $overallCommission = (int) RemittanceTransaction::query()->where('status', 'active')->sum('service_charge');
+        $overallExpense = (int) Expense::query()->where('status', 'active')->sum('amount');
         $borrowing = Borrowing::query()
             ->where('status', 'active')
             ->selectRaw(
@@ -61,6 +64,9 @@ class HelpDeskDashboardController extends Controller
             'commission' => $commission,
             'expense' => $expense,
             'profit_loss' => $income + $commission - $expense,
+            'overall_income' => $overallIncome,
+            'overall_commission' => $overallCommission,
+            'overall_profit_loss' => $overallIncome + $overallCommission - $overallExpense,
             'borrowing_outstanding' => (int) $borrowing,
             'share_capital' => (int) Shareholder::query()->sum('total_investment'),
         ];

@@ -353,6 +353,15 @@
                             Reset
                         </a>
 
+                        <div class="ml-auto flex flex-wrap items-center gap-x-5 gap-y-1 pb-0.5 text-sm">
+                            <span class="text-gray-600">
+                                Total Records: <strong class="font-semibold text-gray-900">{{ number_format($totalRecords) }}</strong>
+                            </span>
+                            <span class="text-gray-600">
+                                Total Amount: <strong class="font-semibold text-green-700">Rs. {{ number_format($totalAmount) }}</strong>
+                            </span>
+                        </div>
+
                     </form>
 
                 </div>

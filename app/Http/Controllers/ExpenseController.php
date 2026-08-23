@@ -165,6 +165,13 @@ class ExpenseController extends Controller
                 });
         }
 
+        $filteredSummary = (clone $query)
+            ->selectRaw('COUNT(*) as total_records, COALESCE(SUM(amount), 0) as total_amount')
+            ->first();
+
+        $totalRecords = (int) $filteredSummary->total_records;
+        $totalAmount = (int) $filteredSummary->total_amount;
+
         $expenses = $query
             ->orderByDesc('date_ad')
             ->orderByDesc('id')
@@ -185,7 +192,9 @@ class ExpenseController extends Controller
                 'currentFinancialYear',
                 'status',
                 'dateFrom',
-                'dateTo'
+                'dateTo',
+                'totalRecords',
+                'totalAmount'
             )
         );
     }
