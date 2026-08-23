@@ -12,6 +12,7 @@ use App\Services\ShareTransferService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -170,6 +171,38 @@ class ShareTransferTest extends TestCase
             ->assertOk()->assertSee($buy->transaction_number)->assertSee($transfer->transaction_number);
         $this->actingAs($admin)->get(route('share-transactions.show', $buy))->assertOk();
         $this->actingAs($admin)->get(route('share-transactions.show', $transfer))->assertOk();
+    }
+
+    public function test_filtered_share_transactions_show_totals_and_support_print_and_excel(): void
+    {
+        $admin = $this->user('admin', 'share-export@example.test');
+        $sender = $this->shareholder(null, 'EXPORT-FROM', 5);
+        $receiver = $this->shareholder(null, 'EXPORT-TO', 1);
+        $transfer = $this->transfer($sender, $receiver, 2, $admin, 750);
+        $filters = [
+            'type' => ShareTransaction::TYPE_TRANSFER,
+            'financial_year' => 'all',
+            'status' => 'active',
+        ];
+
+        $index = $this->actingAs($admin)->get(route('share-transactions.index', $filters))->assertOk();
+        $this->assertSame(1, $index->viewData('totalRecords'));
+        $this->assertSame(1500, $index->viewData('totalAmount'));
+        $index->assertSee('Total Records:')->assertSee('Total Amount / Value:')->assertSee('Print A4')->assertSee('Export Excel');
+
+        $this->actingAs($admin)->get(route('share-transactions.index', $filters + ['output' => 'print']))
+            ->assertOk()
+            ->assertSee('Filtered Share Transactions Report')
+            ->assertSee($transfer->transaction_number)
+            ->assertSee('1,500');
+
+        $response = $this->actingAs($admin)
+            ->get(route('share-transactions.index', $filters + ['output' => 'excel']))
+            ->assertOk();
+        $this->assertStringContainsString('share-transactions-filtered-', (string) $response->headers->get('content-disposition'));
+        $sheet = IOFactory::load($response->baseResponse->getFile()->getPathname())->getActiveSheet();
+        $this->assertSame($transfer->transaction_number, $sheet->getCell('A2')->getValue());
+        $this->assertSame(1500, $sheet->getCell('J2')->getValue());
     }
 
     public function test_transfer_cancellation_uses_unified_route_and_reverses_kitta_once(): void

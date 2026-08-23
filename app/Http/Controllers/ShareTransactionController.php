@@ -10,13 +10,15 @@ use App\Services\ShareTransferService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use App\Services\ShareTransactionService;
+use App\Services\ShareTransactionExportService;
 
 
 class ShareTransactionController extends Controller
 {
 public function __construct(
     private readonly ShareTransactionService $shareTransactionService,
-    private readonly ShareTransferService $shareTransferService
+    private readonly ShareTransferService $shareTransferService,
+    private readonly ShareTransactionExportService $exportService
 ) {
 }
     public function index(Request $request)
@@ -405,6 +407,28 @@ public function __construct(
         );
     }
 
+    if (in_array($request->get('output'), ['print', 'excel'], true)) {
+        $filteredTransactions = (clone $query)
+            ->orderByDesc('date_ad')
+            ->orderByDesc('id')
+            ->get();
+
+        if ($request->get('output') === 'excel') {
+            return $this->exportService->excel($filteredTransactions);
+        }
+
+        return view('share-transactions.print', [
+            'transactions' => $filteredTransactions,
+            'totalAmount' => (int) $filteredTransactions->sum('total_amount'),
+        ]);
+    }
+
+    $filteredSummary = (clone $query)
+        ->selectRaw('COUNT(*) as total_records, COALESCE(SUM(total_amount), 0) as total_amount')
+        ->first();
+    $totalRecords = (int) $filteredSummary->total_records;
+    $totalAmount = (int) $filteredSummary->total_amount;
+
     $transactions =
         $query
             ->orderByDesc('date_ad')
@@ -445,7 +469,9 @@ public function __construct(
             'canCreateShareTransaction',
             'canCreateTransfer',
             'canEditShareTransaction',
-            'canEditTransfer'
+            'canEditTransfer',
+            'totalRecords',
+            'totalAmount'
         )
     );
 }

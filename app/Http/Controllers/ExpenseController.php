@@ -7,6 +7,7 @@ use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Services\ExpenseService;
 use App\Services\IncomeExpenseImportService;
+use App\Services\IncomeExpenseExportService;
 use App\Services\FinancialDateService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -15,7 +16,8 @@ class ExpenseController extends Controller
 {
     public function __construct(
         private readonly ExpenseService $service,
-        private readonly IncomeExpenseImportService $importService
+        private readonly IncomeExpenseImportService $importService,
+        private readonly IncomeExpenseExportService $exportService
     ) {
     }
 
@@ -163,6 +165,24 @@ class ExpenseController extends Controller
                                 ->orWhere('code', 'like', "%{$search}%");
                         });
                 });
+        }
+
+        if (in_array($request->get('output'), ['print', 'excel'], true)) {
+            $filteredExpenses = (clone $query)
+                ->orderByDesc('date_ad')
+                ->orderByDesc('id')
+                ->get();
+
+            if ($request->get('output') === 'excel') {
+                return $this->exportService->excel($filteredExpenses, 'expense');
+            }
+
+            return view('transactions.print', [
+                'title' => 'Filtered Expense Report',
+                'type' => 'expense',
+                'transactions' => $filteredExpenses,
+                'totalAmount' => (int) $filteredExpenses->sum('amount'),
+            ]);
         }
 
         $filteredSummary = (clone $query)

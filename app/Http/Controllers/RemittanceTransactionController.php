@@ -6,6 +6,7 @@ use App\Models\Account;
 use App\Models\Customer;
 use App\Models\RemittanceTransaction;
 use App\Services\RemittanceTransactionService;
+use App\Services\RemittanceExportService;
 use App\Services\FinancialDateService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -14,7 +15,8 @@ use Illuminate\Validation\Rule;
 class RemittanceTransactionController extends Controller
 {
     public function __construct(
-        private readonly RemittanceTransactionService $service
+        private readonly RemittanceTransactionService $service,
+        private readonly RemittanceExportService $exportService
     ) {
     }
 
@@ -80,6 +82,28 @@ class RemittanceTransactionController extends Controller
                 });
         }
 
+        if (in_array($request->get('output'), ['print', 'excel'], true)) {
+            $filteredTransactions = (clone $query)
+                ->orderByDesc('date_ad')
+                ->orderByDesc('id')
+                ->get();
+
+            if ($request->get('output') === 'excel') {
+                return $this->exportService->excel($filteredTransactions);
+            }
+
+            return view('remittances.print', [
+                'transactions' => $filteredTransactions,
+                'totalCommission' => (int) $filteredTransactions->sum('service_charge'),
+            ]);
+        }
+
+        $filteredSummary = (clone $query)
+            ->selectRaw('COUNT(*) as total_records, COALESCE(SUM(service_charge), 0) as total_commission')
+            ->first();
+        $totalRecords = (int) $filteredSummary->total_records;
+        $totalCommission = (int) $filteredSummary->total_commission;
+
         $transactions = $query->orderByDesc('date_ad')->orderByDesc('id')
             ->paginate(20)
             ->withQueryString();
@@ -88,7 +112,8 @@ class RemittanceTransactionController extends Controller
             'remittances.index',
             compact('transactions', 'search', 'providers', 'providerAccountId',
                 'cashAccounts', 'cashAccountId', 'financialYear', 'financialYears',
-                'currentFinancialYear', 'status', 'dateFrom', 'dateTo')
+                'currentFinancialYear', 'status', 'dateFrom', 'dateTo',
+                'totalRecords', 'totalCommission')
         );
     }
 

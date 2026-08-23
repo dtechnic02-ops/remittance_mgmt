@@ -362,6 +362,15 @@
                             </span>
                         </div>
 
+                        <button type="submit" name="output" value="print" formtarget="_blank"
+                                class="rounded-md border border-blue-300 px-4 py-2.5 text-sm font-medium text-blue-700 hover:bg-blue-50">
+                            Print A4
+                        </button>
+                        <button type="submit" name="output" value="excel"
+                                class="rounded-md border border-green-300 px-4 py-2.5 text-sm font-medium text-green-700 hover:bg-green-50">
+                            Export Excel
+                        </button>
+
                     </form>
 
                 </div>

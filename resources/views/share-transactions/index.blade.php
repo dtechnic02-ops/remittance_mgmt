@@ -299,6 +299,24 @@
                             Reset
                         </a>
 
+                        <div class="ml-auto flex flex-wrap items-center gap-x-5 gap-y-1 pb-0.5 text-sm">
+                            <span class="text-gray-600">
+                                Total Records: <strong class="font-semibold text-gray-900">{{ number_format($totalRecords) }}</strong>
+                            </span>
+                            <span class="text-gray-600">
+                                Total Amount / Value: <strong class="font-semibold text-purple-700">Rs. {{ number_format($totalAmount) }}</strong>
+                            </span>
+                        </div>
+
+                        <button type="submit" name="output" value="print" formtarget="_blank"
+                                class="rounded-md border border-blue-300 px-4 py-2.5 text-sm font-medium text-blue-700 hover:bg-blue-50">
+                            Print A4
+                        </button>
+                        <button type="submit" name="output" value="excel"
+                                class="rounded-md border border-green-300 px-4 py-2.5 text-sm font-medium text-green-700 hover:bg-green-50">
+                            Export Excel
+                        </button>
+
                     </form>
 
                 </div>

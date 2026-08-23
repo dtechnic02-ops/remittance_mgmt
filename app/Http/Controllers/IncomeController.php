@@ -7,6 +7,7 @@ use App\Models\Income;
 use App\Models\IncomeCategory;
 use App\Services\IncomeService;
 use App\Services\IncomeExpenseImportService;
+use App\Services\IncomeExpenseExportService;
 use App\Services\FinancialDateService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -15,7 +16,8 @@ class IncomeController extends Controller
 {
     public function __construct(
         private readonly IncomeService $service,
-        private readonly IncomeExpenseImportService $importService
+        private readonly IncomeExpenseImportService $importService,
+        private readonly IncomeExpenseExportService $exportService
     ) {
     }
 
@@ -367,6 +369,24 @@ public function index(Request $request)
     | Results
     |--------------------------------------------------------------------------
     */
+
+    if (in_array($request->get('output'), ['print', 'excel'], true)) {
+        $filteredIncomes = (clone $query)
+            ->orderByDesc('date_ad')
+            ->orderByDesc('id')
+            ->get();
+
+        if ($request->get('output') === 'excel') {
+            return $this->exportService->excel($filteredIncomes, 'income');
+        }
+
+        return view('transactions.print', [
+            'title' => 'Filtered Income Report',
+            'type' => 'income',
+            'transactions' => $filteredIncomes,
+            'totalAmount' => (int) $filteredIncomes->sum('amount'),
+        ]);
+    }
 
     $filteredSummary = (clone $query)
         ->selectRaw('COUNT(*) as total_records, COALESCE(SUM(amount), 0) as total_amount')
