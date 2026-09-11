@@ -11,6 +11,7 @@ return new class extends Migration
         Schema::table('share_transactions', function (Blueprint $table) {
             $table->foreignId('settlement_of_id')
                 ->nullable()
+                ->unique()
                 ->after('investment_effect')
                 ->constrained('share_transactions')
                 ->restrictOnDelete();
