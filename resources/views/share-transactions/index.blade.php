@@ -304,7 +304,7 @@
                                 Total Records: <strong class="font-semibold text-gray-900">{{ number_format($totalRecords) }}</strong>
                             </span>
                             <span class="text-gray-600">
-                                Total Amount / Value: <strong class="font-semibold text-purple-700">Rs. {{ number_format($totalAmount) }}</strong>
+                                Total Amount / Value: <strong class="font-semibold text-purple-700">Rs. {{ $totalAmount > 0 ? '+' : '' }}{{ number_format($totalAmount) }}</strong>
                             </span>
                         </div>
 

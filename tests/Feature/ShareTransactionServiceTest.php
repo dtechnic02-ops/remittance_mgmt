@@ -15,6 +15,100 @@ class ShareTransactionServiceTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_full_withdrawal_clears_residual_investment_and_cancellation_restores_it(): void
+    {
+        $user = User::factory()->create();
+        $shareholder = Shareholder::create([
+            'code' => 'SH-SETTLE',
+            'name' => 'Settlement Shareholder',
+            'kitta' => 0,
+            'per_kitta_value' => 1000,
+            'total_investment' => 0,
+            'is_active' => true,
+            'created_by' => $user->id,
+            'updated_by' => $user->id,
+        ]);
+        $account = Account::create([
+            'name' => 'Settlement Cash',
+            'code' => 'SETTLE-CASH',
+            'type' => Account::TYPE_CASH,
+            'opening_balance' => 0,
+            'current_balance' => 0,
+            'allow_negative' => false,
+            'is_active' => true,
+            'created_by' => $user->id,
+            'updated_by' => $user->id,
+        ]);
+        $service = app(ShareTransactionService::class);
+        $base = [
+            'shareholder_id' => $shareholder->id,
+            'account_id' => $account->id,
+            'date_ad' => '2026-09-11',
+            'date_bs' => '2083-05-26',
+            'financial_year' => '2083/84',
+            'kitta' => 500,
+            'created_by' => $user->id,
+        ];
+
+        $service->create($base + [
+            'transaction_type' => ShareTransaction::TYPE_BUY,
+            'per_kitta_value' => 1000,
+        ]);
+        $withdrawal = $service->create($base + [
+            'transaction_type' => ShareTransaction::TYPE_WITHDRAW,
+            'per_kitta_value' => 984,
+        ]);
+
+        $this->assertSame(0, $shareholder->fresh()->kitta);
+        $this->assertSame(0, $shareholder->fresh()->total_investment);
+        $this->assertSame(8000, $account->fresh()->current_balance);
+        $this->assertSame('500000.00', $withdrawal->investment_effect);
+
+        $service->cancel($withdrawal, $user->id, 'Cancel full withdrawal');
+
+        $this->assertSame(500, $shareholder->fresh()->kitta);
+        $this->assertSame(500000, $shareholder->fresh()->total_investment);
+        $this->assertSame(500000, $account->fresh()->current_balance);
+    }
+
+    public function test_buy_and_withdraw_preserve_decimal_per_kitta_values(): void
+    {
+        $user = User::factory()->create();
+        $shareholder = Shareholder::create([
+            'code' => 'SH-DECIMAL', 'name' => 'Decimal Shareholder',
+            'kitta' => 20, 'per_kitta_value' => 1000,
+            'total_investment' => 20000, 'is_active' => true,
+            'created_by' => $user->id, 'updated_by' => $user->id,
+        ]);
+        $account = Account::create([
+            'name' => 'Decimal Cash', 'code' => 'DEC-CASH',
+            'type' => Account::TYPE_CASH, 'opening_balance' => 20000,
+            'current_balance' => 20000, 'allow_negative' => false,
+            'is_active' => true, 'created_by' => $user->id, 'updated_by' => $user->id,
+        ]);
+        $service = app(ShareTransactionService::class);
+        $base = [
+            'shareholder_id' => $shareholder->id, 'account_id' => $account->id,
+            'date_ad' => '2026-08-27', 'date_bs' => '2083-05-11',
+            'financial_year' => '2083/84', 'kitta' => 10,
+            'created_by' => $user->id,
+        ];
+
+        $buy = $service->create($base + [
+            'transaction_type' => ShareTransaction::TYPE_BUY,
+            'per_kitta_value' => '950.20',
+        ]);
+        $withdraw = $service->create($base + [
+            'transaction_type' => ShareTransaction::TYPE_WITHDRAW,
+            'per_kitta_value' => '983.50',
+        ]);
+
+        $this->assertSame('950.20', $buy->per_kitta_value);
+        $this->assertSame('9502.00', $buy->total_amount);
+        $this->assertSame('983.50', $withdraw->per_kitta_value);
+        $this->assertSame('9835.00', $withdraw->total_amount);
+    }
+
     public function test_buy_kitta_increases_shareholder_and_account(): void
     {
         $user = User::factory()->create();
@@ -76,11 +170,11 @@ class ShareTransactionServiceTest extends TestCase
         );
 
         $this->assertSame(
-            2500,
+            '2500.00',
             $transaction->total_amount
         );
 
-        $this->assertSame(1250, $transaction->per_kitta_value);
+        $this->assertSame('1250.00', $transaction->per_kitta_value);
 
         $this->assertSame(
             'SHR-000001',
@@ -158,7 +252,7 @@ class ShareTransactionServiceTest extends TestCase
         );
 
         $this->assertSame(
-            1500,
+            '1500.00',
             $transaction->total_amount
         );
 
@@ -456,8 +550,8 @@ class ShareTransactionServiceTest extends TestCase
         $first = $service->create($base + ['kitta' => 2, 'per_kitta_value' => 600]);
         $second = $service->create($base + ['kitta' => 3, 'per_kitta_value' => 800]);
 
-        $this->assertSame(1200, $first->total_amount);
-        $this->assertSame(2400, $second->total_amount);
+        $this->assertSame('1200.00', $first->total_amount);
+        $this->assertSame('2400.00', $second->total_amount);
         $this->assertSame(5, $shareholder->fresh()->kitta);
         $this->assertSame(3600, $shareholder->fresh()->total_investment);
         $this->assertSame(3600, $cash->fresh()->current_balance);

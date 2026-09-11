@@ -61,16 +61,18 @@ class ShareTransactionService
             }
 
             $perKittaValue =
-                (int) ($data['per_kitta_value'] ?? 0);
+                $this->decimalValue($data['per_kitta_value'] ?? 0);
 
-            if ($perKittaValue <= 0) {
+            if ((float) $perKittaValue <= 0) {
                 throw new RuntimeException(
                     'Invalid per Kitta value.'
                 );
             }
 
             $totalAmount =
-                $kitta * $perKittaValue;
+                $this->multiplyByKitta($perKittaValue, $kitta);
+
+            $investmentEffect = $totalAmount;
 
             if ($transactionType === ShareTransaction::TYPE_WITHDRAW) {
                 if ((int) $shareholder->kitta < $kitta) {
@@ -82,6 +84,12 @@ class ShareTransactionService
                 if ((int) $shareholder->total_investment < $totalAmount) {
                     throw new RuntimeException(
                         'Shareholder investment cannot become negative.'
+                    );
+                }
+
+                if ((int) $shareholder->kitta === $kitta) {
+                    $investmentEffect = $this->decimalValue(
+                        $shareholder->total_investment
                     );
                 }
             }
@@ -97,6 +105,7 @@ class ShareTransactionService
                 'kitta' => $kitta,
                 'per_kitta_value' => $perKittaValue,
                 'total_amount' => $totalAmount,
+                'investment_effect' => $investmentEffect,
                 'reference' => $data['reference'] ?? null,
                 'attachment' => $data['attachment'] ?? null,
                 'note' => $data['note'] ?? null,
@@ -154,7 +163,7 @@ class ShareTransactionService
 
                 $shareholder->total_investment =
                     (int) $shareholder->total_investment
-                    - $totalAmount;
+                    - $investmentEffect;
 
                 if ($shareholder->total_investment < 0) {
                     throw new RuntimeException(
@@ -380,7 +389,7 @@ public function updateMetadata(
 
                 $shareholder->total_investment =
                     (int) $shareholder->total_investment
-                    - (int) $transaction->total_amount;
+                    - (float) $transaction->total_amount;
 
                 if ($shareholder->total_investment < 0) {
                     throw new RuntimeException(
@@ -398,13 +407,16 @@ public function updateMetadata(
                 $transaction->transaction_type
                 === ShareTransaction::TYPE_WITHDRAW
             ) {
+                $investmentEffect = $transaction->investment_effect
+                    ?? $transaction->total_amount;
+
                 $shareholder->kitta =
                     (int) $shareholder->kitta
                     + (int) $transaction->kitta;
 
                 $shareholder->total_investment =
                     (int) $shareholder->total_investment
-                    + (int) $transaction->total_amount;
+                    + (float) $investmentEffect;
             }
 
             $shareholder->updated_by = $userId;
@@ -422,6 +434,18 @@ public function updateMetadata(
                 'account',
             ]);
         });
+    }
+
+    private function decimalValue(mixed $value): string
+    {
+        return number_format((float) $value, 2, '.', '');
+    }
+
+    private function multiplyByKitta(string $perKittaValue, int $kitta): string
+    {
+        $perKittaCents = (int) round(((float) $perKittaValue) * 100);
+
+        return number_format(($perKittaCents * $kitta) / 100, 2, '.', '');
     }
 
 }

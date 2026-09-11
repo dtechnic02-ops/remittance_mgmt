@@ -26,6 +26,7 @@ class ShareTransaction extends Model
         'kitta',
         'per_kitta_value',
         'total_amount',
+        'investment_effect',
         'reference',
         'attachment',
         'note',
@@ -41,8 +42,9 @@ class ShareTransaction extends Model
         return [
             'date_ad' => 'date',
             'kitta' => 'integer',
-            'per_kitta_value' => 'integer',
-            'total_amount' => 'integer',
+            'per_kitta_value' => 'decimal:2',
+            'total_amount' => 'decimal:2',
+            'investment_effect' => 'decimal:2',
             'cancelled_at' => 'datetime',
         ];
     }

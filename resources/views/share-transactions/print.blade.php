@@ -44,7 +44,10 @@
                 <tr><td colspan="11" style="text-align:center">No filtered share transactions found.</td></tr>
             @endforelse
         </tbody>
-        <tfoot><tr><td colspan="9" class="number">Total Amount / Value</td><td class="number">Rs. {{ number_format($totalAmount) }}</td><td></td></tr></tfoot>
+        <tfoot>
+            <tr><td colspan="7" class="number">Total Kitta</td><td class="number">{{ number_format($totalKitta) }}</td><td colspan="3"></td></tr>
+            <tr><td colspan="9" class="number">Total Amount / Value</td><td class="number">Rs. {{ $totalAmount > 0 ? '+' : '' }}{{ number_format($totalAmount) }}</td><td></td></tr>
+        </tfoot>
     </table>
 </body>
 </html>

@@ -407,6 +407,8 @@ public function __construct(
         );
     }
 
+    $filteredTransactions = null;
+
     if (in_array($request->get('output'), ['print', 'excel'], true)) {
         $filteredTransactions = (clone $query)
             ->orderByDesc('date_ad')
@@ -417,17 +419,99 @@ public function __construct(
             return $this->exportService->excel($filteredTransactions);
         }
 
-        return view('share-transactions.print', [
-            'transactions' => $filteredTransactions,
-            'totalAmount' => (int) $filteredTransactions->sum('total_amount'),
-        ]);
     }
 
-    $filteredSummary = (clone $query)
-        ->selectRaw('COUNT(*) as total_records, COALESCE(SUM(total_amount), 0) as total_amount')
-        ->first();
+    $summaryShareholderId = null;
+
+    if ($user->isShareholder()) {
+        $summaryShareholderId = (int) $shareholder->id;
+    } elseif ($search !== '') {
+        $matchingShareholders = Shareholder::query()
+            ->where(function ($query) use ($search) {
+                $query
+                    ->where('name', 'like', "%{$search}%")
+                    ->orWhere('code', 'like', "%{$search}%")
+                    ->orWhere('mobile', 'like', "%{$search}%");
+            })
+            ->limit(2)
+            ->pluck('id');
+
+        if ($matchingShareholders->count() === 1) {
+            $summaryShareholderId = (int) $matchingShareholders->first();
+        }
+    }
+
+    if ($summaryShareholderId !== null) {
+        $filteredSummary = (clone $query)
+            ->selectRaw(
+                'COUNT(*) as total_records,
+                 COALESCE(SUM(CASE
+                    WHEN transaction_type = ? AND shareholder_id = ? THEN kitta
+                    WHEN transaction_type = ? AND shareholder_id = ? THEN -kitta
+                    WHEN transaction_type = ? AND to_shareholder_id = ? THEN kitta
+                    WHEN transaction_type = ? AND shareholder_id = ? THEN -kitta
+                    ELSE 0
+                 END), 0) as total_kitta,
+                 COALESCE(SUM(CASE
+                    WHEN transaction_type = ? AND shareholder_id = ? THEN total_amount
+                    WHEN transaction_type = ? AND shareholder_id = ? THEN -total_amount
+                    WHEN transaction_type = ? AND to_shareholder_id = ? THEN total_amount
+                    WHEN transaction_type = ? AND shareholder_id = ? THEN -total_amount
+                    ELSE 0
+                 END), 0) as total_amount',
+                [
+                    ShareTransaction::TYPE_BUY,
+                    $summaryShareholderId,
+                    ShareTransaction::TYPE_WITHDRAW,
+                    $summaryShareholderId,
+                    ShareTransaction::TYPE_TRANSFER,
+                    $summaryShareholderId,
+                    ShareTransaction::TYPE_TRANSFER,
+                    $summaryShareholderId,
+                    ShareTransaction::TYPE_BUY,
+                    $summaryShareholderId,
+                    ShareTransaction::TYPE_WITHDRAW,
+                    $summaryShareholderId,
+                    ShareTransaction::TYPE_TRANSFER,
+                    $summaryShareholderId,
+                    ShareTransaction::TYPE_TRANSFER,
+                    $summaryShareholderId,
+                ]
+            )
+            ->first();
+    } else {
+        $filteredSummary = (clone $query)
+            ->selectRaw(
+                'COUNT(*) as total_records,
+                 COALESCE(SUM(CASE
+                    WHEN transaction_type = ? THEN kitta
+                    WHEN transaction_type = ? THEN -kitta
+                    ELSE 0
+                 END), 0) as total_kitta,
+                 COALESCE(SUM(CASE
+                    WHEN transaction_type = ? THEN total_amount
+                    WHEN transaction_type = ? THEN -total_amount
+                    ELSE 0
+                 END), 0) as total_amount',
+                [
+                    ShareTransaction::TYPE_BUY,
+                    ShareTransaction::TYPE_WITHDRAW,
+                    ShareTransaction::TYPE_BUY,
+                    ShareTransaction::TYPE_WITHDRAW,
+                ]
+            )
+            ->first();
+    }
     $totalRecords = (int) $filteredSummary->total_records;
     $totalAmount = (int) $filteredSummary->total_amount;
+
+    if ($request->get('output') === 'print') {
+        return view('share-transactions.print', [
+            'transactions' => $filteredTransactions,
+            'totalKitta' => (int) $filteredSummary->total_kitta,
+            'totalAmount' => (float) $filteredSummary->total_amount,
+        ]);
+    }
 
     $transactions =
         $query
@@ -627,8 +711,9 @@ public function __construct(
 
                 'per_kitta_value' => [
                     'required',
-                    'integer',
-                    'min:1',
+                    'numeric',
+                    'decimal:0,2',
+                    'min:0.01',
                 ],
 
                 'reference' => [
@@ -789,8 +874,9 @@ public function __construct(
 
             'per_kitta_value' => [
                 'required',
-                'integer',
-                'min:1',
+                'numeric',
+                'decimal:0,2',
+                'min:0.01',
             ],
 
             'reference' => [

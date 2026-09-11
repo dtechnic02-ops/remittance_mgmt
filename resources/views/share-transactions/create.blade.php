@@ -331,8 +331,8 @@
                                 id="per_kitta_value"
                                 name="per_kitta_value"
                                 value="{{ old('per_kitta_value') }}"
-                                min="1"
-                                step="1"
+                                min="0.01"
+                                step="0.01"
                                 required
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
                             >
@@ -1076,9 +1076,8 @@
                 function updateTotal() {
 
                     const perKitta =
-                        parseInt(
+                        parseFloat(
                             perKittaValue.value || 0,
-                            10
                         );
 
                     const quantity =
@@ -1091,7 +1090,13 @@
                         (
                             quantity
                             * perKitta
-                        ).toLocaleString();
+                        ).toLocaleString(
+                            undefined,
+                            {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                            }
+                        );
 
                 }
 

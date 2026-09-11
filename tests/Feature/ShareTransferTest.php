@@ -20,6 +20,18 @@ class ShareTransferTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_transfer_preserves_decimal_per_kitta_and_exact_total(): void
+    {
+        $admin = $this->user('admin', 'decimal-transfer@example.test');
+        $sender = $this->shareholder(null, 'DECIMAL-FROM', 20);
+        $receiver = $this->shareholder(null, 'DECIMAL-TO', 0);
+
+        $transfer = $this->transfer($sender, $receiver, 10, $admin, '950.20');
+
+        $this->assertSame('950.20', $transfer->per_kitta_value);
+        $this->assertSame('9502.00', $transfer->total_amount);
+    }
+
     public function test_admin_staff_shareholder_and_guest_access_matrix(): void
     {
         $admin = $this->user('admin', 'admin-transfer@example.test');
@@ -146,8 +158,8 @@ class ShareTransferTest extends TestCase
         $this->assertDatabaseCount('ledger_entries', 0);
         $this->assertSame(6500, $sender->fresh()->total_investment);
         $this->assertSame(2500, $receiver->fresh()->total_investment);
-        $this->assertSame(750, $transfer->per_kitta_value);
-        $this->assertSame(1500, $transfer->total_amount);
+        $this->assertSame('750.00', $transfer->per_kitta_value);
+        $this->assertSame('1500.00', $transfer->total_amount);
     }
 
     public function test_transfer_appears_in_unified_history_and_nullable_account_detail_is_safe(): void
@@ -187,7 +199,7 @@ class ShareTransferTest extends TestCase
 
         $index = $this->actingAs($admin)->get(route('share-transactions.index', $filters))->assertOk();
         $this->assertSame(1, $index->viewData('totalRecords'));
-        $this->assertSame(1500, $index->viewData('totalAmount'));
+        $this->assertSame(0, $index->viewData('totalAmount'));
         $index->assertSee('Total Records:')->assertSee('Total Amount / Value:')->assertSee('Print A4')->assertSee('Export Excel');
 
         $this->actingAs($admin)->get(route('share-transactions.index', $filters + ['output' => 'print']))
@@ -202,7 +214,7 @@ class ShareTransferTest extends TestCase
         $this->assertStringContainsString('share-transactions-filtered-', (string) $response->headers->get('content-disposition'));
         $sheet = IOFactory::load($response->baseResponse->getFile()->getPathname())->getActiveSheet();
         $this->assertSame($transfer->transaction_number, $sheet->getCell('A2')->getValue());
-        $this->assertSame(1500, $sheet->getCell('J2')->getValue());
+        $this->assertSame(1500.0, $sheet->getCell('J2')->getValue());
     }
 
     public function test_transfer_cancellation_uses_unified_route_and_reverses_kitta_once(): void
@@ -258,7 +270,7 @@ class ShareTransferTest extends TestCase
         Shareholder $to,
         int $kitta,
         User $actor,
-        int $perKittaValue = 1000
+        int|float|string $perKittaValue = 1000
     ): ShareTransaction
     {
         return app(ShareTransferService::class)->create(
@@ -271,7 +283,7 @@ class ShareTransferTest extends TestCase
         int $to,
         int $kitta,
         User $actor,
-        int $perKittaValue = 1000
+        int|float|string $perKittaValue = 1000
     ): array
     {
         return [

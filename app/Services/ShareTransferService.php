@@ -55,16 +55,16 @@ class ShareTransferService
             }
 
             $perKittaValue =
-                (int) ($data['per_kitta_value'] ?? 0);
+                $this->decimalValue($data['per_kitta_value'] ?? 0);
 
-            if ($perKittaValue <= 0) {
+            if ((float) $perKittaValue <= 0) {
                 throw new RuntimeException(
                     'Invalid per Kitta value.'
                 );
             }
 
             $totalAmount =
-                $kitta * $perKittaValue;
+                $this->multiplyByKitta($perKittaValue, $kitta);
 
             if (
                 (int) $fromShareholder->total_investment
@@ -359,7 +359,7 @@ class ShareTransferService
                 (int) $transaction->kitta;
 
             $totalAmount =
-                (int) $transaction->total_amount;
+                (float) $transaction->total_amount;
 
             if ($kitta <= 0) {
                 throw new RuntimeException(
@@ -484,5 +484,17 @@ class ShareTransferService
                 'canceller',
             ]);
         });
+    }
+
+    private function decimalValue(mixed $value): string
+    {
+        return number_format((float) $value, 2, '.', '');
+    }
+
+    private function multiplyByKitta(string $perKittaValue, int $kitta): string
+    {
+        $perKittaCents = (int) round(((float) $perKittaValue) * 100);
+
+        return number_format(($perKittaCents * $kitta) / 100, 2, '.', '');
     }
 }
