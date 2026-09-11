@@ -9,18 +9,14 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('share_transactions', function (Blueprint $table) {
-            $table->foreignId('settlement_of_id')
-                ->nullable()
-                ->after('investment_effect')
-                ->constrained('share_transactions')
-                ->restrictOnDelete();
+            $table->unique('settlement_of_id');
         });
     }
 
     public function down(): void
     {
         Schema::table('share_transactions', function (Blueprint $table) {
-            $table->dropConstrainedForeignId('settlement_of_id');
+            $table->dropUnique(['settlement_of_id']);
         });
     }
 };
