@@ -29,7 +29,7 @@
                 <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <x-dashboard-card title="Total Income" :value="$signed($summary['income'])" :detail="'Overall: Rs. '.number_format($summary['overall_income'])" />
                     <x-dashboard-card title="Total Commission" :value="$signed($summary['commission'])" :detail="'Overall: Rs. '.number_format($summary['overall_commission'])" />
-                    <x-dashboard-card title="Total Expense" :value="'-'.number_format($summary['expense'])" />
+                    <x-dashboard-card title="Total Expense" :value="'-'.number_format($summary['expense'])" :detail="'Overall: Rs. '.number_format($overallExpense)" />
                     <x-dashboard-card title="Net Profit / Loss" :value="$signed($summary['profit_loss'])" :negative="$summary['profit_loss'] < 0" :detail="'Overall '.($summary['overall_profit_loss'] < 0 ? 'Loss' : 'Profit').': Rs. '.number_format(abs($summary['overall_profit_loss']))" featured />
                 </div>
             </section>

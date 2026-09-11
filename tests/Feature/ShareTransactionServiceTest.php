@@ -15,7 +15,7 @@ class ShareTransactionServiceTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_full_withdrawal_clears_residual_investment_and_cancellation_restores_it(): void
+    public function test_full_withdrawal_creates_gain_settlement_without_posting_account_twice_and_cancellation_restores_it(): void
     {
         $user = User::factory()->create();
         $shareholder = Shareholder::create([
@@ -46,7 +46,7 @@ class ShareTransactionServiceTest extends TestCase
             'date_ad' => '2026-09-11',
             'date_bs' => '2083-05-26',
             'financial_year' => '2083/84',
-            'kitta' => 500,
+            'kitta' => 5,
             'created_by' => $user->id,
         ];
 
@@ -56,19 +56,43 @@ class ShareTransactionServiceTest extends TestCase
         ]);
         $withdrawal = $service->create($base + [
             'transaction_type' => ShareTransaction::TYPE_WITHDRAW,
-            'per_kitta_value' => 984,
+            'per_kitta_value' => 900,
         ]);
 
         $this->assertSame(0, $shareholder->fresh()->kitta);
         $this->assertSame(0, $shareholder->fresh()->total_investment);
-        $this->assertSame(8000, $account->fresh()->current_balance);
-        $this->assertSame('500000.00', $withdrawal->investment_effect);
+        $this->assertSame(500, $account->fresh()->current_balance);
+        $this->assertSame('5000.00', $withdrawal->investment_effect);
 
-        $service->cancel($withdrawal, $user->id, 'Cancel full withdrawal');
+        $settlement = ShareTransaction::query()
+            ->where('settlement_of_id', $withdrawal->id)
+            ->sole();
 
-        $this->assertSame(500, $shareholder->fresh()->kitta);
-        $this->assertSame(500000, $shareholder->fresh()->total_investment);
-        $this->assertSame(500000, $account->fresh()->current_balance);
+        $this->assertSame(ShareTransaction::TYPE_SETTLEMENT_GAIN, $settlement->transaction_type);
+        $this->assertSame('500.00', $settlement->total_amount);
+        $this->assertDatabaseCount('ledger_entries', 2);
+
+        $netShareValue = ShareTransaction::query()
+            ->where('status', 'active')
+            ->get()
+            ->sum(fn (ShareTransaction $transaction): float => match ($transaction->transaction_type) {
+                ShareTransaction::TYPE_BUY,
+                ShareTransaction::TYPE_SETTLEMENT_LOSS => (float) $transaction->total_amount,
+                ShareTransaction::TYPE_WITHDRAW,
+                ShareTransaction::TYPE_SETTLEMENT_GAIN => -((float) $transaction->total_amount),
+                default => 0.0,
+            });
+
+        $this->assertSame(0.0, $netShareValue);
+
+        $service->cancel($settlement, $user->id, 'Cancel full withdrawal settlement');
+
+        $this->assertSame(5, $shareholder->fresh()->kitta);
+        $this->assertSame(5000, $shareholder->fresh()->total_investment);
+        $this->assertSame(5000, $account->fresh()->current_balance);
+        $this->assertSame('cancelled', $withdrawal->fresh()->status);
+        $this->assertSame('cancelled', $settlement->fresh()->status);
+        $this->assertDatabaseCount('ledger_entries', 3);
     }
 
     public function test_buy_and_withdraw_preserve_decimal_per_kitta_values(): void

@@ -5,10 +5,12 @@
                 Account Management
             </h2>
 
-            <a href="{{ route('accounts.create') }}"
-               class="px-4 py-2 bg-gray-800 text-white rounded-md">
-                + New Account
-            </a>
+            @if (auth()->user()->isAdmin())
+                <a href="{{ route('accounts.create') }}"
+                   class="px-4 py-2 bg-gray-800 text-white rounded-md">
+                    + New Account
+                </a>
+            @endif
         </div>
     </x-slot>
 
@@ -78,22 +80,24 @@
                                                     View
                                                 </a>
 
-                                                <a href="{{ route('accounts.edit', $account) }}"
-                                                   class="text-indigo-600">
-                                                    Edit
-                                                </a>
+                                                @if (auth()->user()->isAdmin())
+                                                    <a href="{{ route('accounts.edit', $account) }}"
+                                                       class="text-indigo-600">
+                                                        Edit
+                                                    </a>
 
-                                                <form method="POST"
-                                                      action="{{ route('accounts.destroy', $account) }}"
-                                                      onsubmit="return confirm('Delete this account?');">
-                                                    @csrf
-                                                    @method('DELETE')
+                                                    <form method="POST"
+                                                          action="{{ route('accounts.destroy', $account) }}"
+                                                          onsubmit="return confirm('Delete this account?');">
+                                                        @csrf
+                                                        @method('DELETE')
 
-                                                    <button type="submit"
-                                                            class="text-red-600">
-                                                        Delete
-                                                    </button>
-                                                </form>
+                                                        <button type="submit"
+                                                                class="text-red-600">
+                                                            Delete
+                                                        </button>
+                                                    </form>
+                                                @endif
                                             </div>
                                         </td>
                                     </tr>

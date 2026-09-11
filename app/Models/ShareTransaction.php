@@ -13,6 +13,8 @@ class ShareTransaction extends Model
     public const TYPE_BUY = 'buy';
     public const TYPE_WITHDRAW = 'withdraw';
     public const TYPE_TRANSFER = 'transfer';
+    public const TYPE_SETTLEMENT_GAIN = 'settlement_gain';
+    public const TYPE_SETTLEMENT_LOSS = 'settlement_loss';
 
     protected $fillable = [
         'transaction_number',
@@ -27,6 +29,7 @@ class ShareTransaction extends Model
         'per_kitta_value',
         'total_amount',
         'investment_effect',
+        'settlement_of_id',
         'reference',
         'attachment',
         'note',
@@ -55,7 +58,19 @@ class ShareTransaction extends Model
             self::TYPE_BUY => 'Buy Kitta',
             self::TYPE_WITHDRAW => 'Withdraw Share',
             self::TYPE_TRANSFER => 'Share Transfer',
+            self::TYPE_SETTLEMENT_GAIN => 'Share Settlement Gain',
+            self::TYPE_SETTLEMENT_LOSS => 'Share Settlement Loss',
         ];
+    }
+
+    public function settlement(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(self::class, 'settlement_of_id');
+    }
+
+    public function settledTransaction(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'settlement_of_id');
     }
 
     public function shareholder(): BelongsTo

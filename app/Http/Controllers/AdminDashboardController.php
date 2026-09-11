@@ -70,7 +70,11 @@ class AdminDashboardController extends Controller
             'borrowing_outstanding' => (int) $borrowing,
         ];
 
-        return view('admin.dashboard', compact('summary', 'financialYear'));
+        return view('admin.dashboard', compact(
+            'summary',
+            'financialYear',
+            'overallExpense'
+        ));
     }
 
     private function currentFinancialYear(): string

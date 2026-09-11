@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Account;
 use App\Models\AccountTransfer;
 use App\Models\LedgerEntry;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -35,8 +36,11 @@ class AccountTransferService
             }
 
             if (
-                $fromAccount->type === Account::TYPE_FIXED_DEPOSIT
-                || $toAccount->type === Account::TYPE_FIXED_DEPOSIT
+                ! User::query()->whereKey($data['created_by'])->where('role', 'admin')->exists()
+                && (
+                    $fromAccount->type === Account::TYPE_FIXED_DEPOSIT
+                    || $toAccount->type === Account::TYPE_FIXED_DEPOSIT
+                )
             ) {
                 throw new RuntimeException(
                     'Fixed Deposit account cannot be used in account transfer.'

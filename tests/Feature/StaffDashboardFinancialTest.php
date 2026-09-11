@@ -59,6 +59,7 @@ $this->assertSame(
         $this->assertSame(-900, $staffSummary['profit_loss']);
         $this->assertSame(12600, $staffSummary['overall_income']);
         $this->assertSame(1900, $staffSummary['overall_commission']);
+        $this->assertSame(15000, $staffResponse->viewData('overallExpense'));
         $this->assertSame(-500, $staffSummary['overall_profit_loss']);
         $this->assertSame(7000, $staffSummary['borrowing_outstanding']);
         $this->assertSame($financialYear, $staffResponse->viewData('financialYear'));
@@ -70,6 +71,7 @@ $this->assertSame(
         $staffResponse
             ->assertSee('Overall: Rs. 12,600')
             ->assertSee('Overall: Rs. 1,900')
+            ->assertSee('Overall: Rs. 15,000')
             ->assertSee('Overall Loss: Rs. 500');
     }
 

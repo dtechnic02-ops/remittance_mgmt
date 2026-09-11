@@ -6,6 +6,7 @@ use App\Models\Account;
 use App\Models\AccountTransfer;
 use App\Services\AccountTransferService;
 use App\Services\FinancialDateService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -32,8 +33,9 @@ class AccountTransferController extends Controller
         $financialYear = trim((string) $request->get('financial_year', $currentFinancialYear));
         if ($financialYear === '') $financialYear = $currentFinancialYear;
 
-        $accounts = Account::query()->where('is_active', true)
-            ->where('type', '!=', Account::TYPE_FIXED_DEPOSIT)->orderBy('name')->get();
+        $accounts = $this->availableAccountsQuery()
+            ->orderBy('name')
+            ->get();
         $financialYears = AccountTransfer::query()->whereNotNull('financial_year')
             ->where('financial_year', '!=', '')->distinct()->orderByDesc('financial_year')
             ->pluck('financial_year');
@@ -82,9 +84,7 @@ class AccountTransferController extends Controller
     {
         $this->ensureAdminOrStaff();
 
-        $accounts = Account::query()
-            ->where('is_active', true)
-            ->where('type', '!=', Account::TYPE_FIXED_DEPOSIT)
+        $accounts = $this->availableAccountsQuery()
             ->orderBy('name')
             ->get();
 
@@ -150,16 +150,12 @@ class AccountTransferController extends Controller
             app(FinancialDateService::class)->fromEnglishDate($validated['date_ad'])
         );
 
-        $fromAccount = Account::query()
+        $fromAccount = $this->availableAccountsQuery()
             ->whereKey($validated['from_account_id'])
-            ->where('is_active', true)
-            ->where('type', '!=', Account::TYPE_FIXED_DEPOSIT)
             ->firstOrFail();
 
-        $toAccount = Account::query()
+        $toAccount = $this->availableAccountsQuery()
             ->whereKey($validated['to_account_id'])
-            ->where('is_active', true)
-            ->where('type', '!=', Account::TYPE_FIXED_DEPOSIT)
             ->firstOrFail();
 
         $validated['from_account_id'] = $fromAccount->id;
@@ -315,5 +311,23 @@ class AccountTransferController extends Controller
             $user->canAccessBusinessData(),
             403
         );
+    }
+
+    private function availableAccountsQuery(): Builder
+    {
+        return Account::query()
+            ->where('is_active', true)
+            ->when(
+                ! auth()->user()->isAdmin(),
+                fn (Builder $query) => $query->where(
+                    fn (Builder $query) => $query
+                        ->whereNull('type')
+                        ->orWhere(
+                            'type',
+                            '!=',
+                            Account::TYPE_FIXED_DEPOSIT
+                        )
+                )
+            );
     }
 }

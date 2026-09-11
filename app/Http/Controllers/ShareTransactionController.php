@@ -155,6 +155,12 @@ public function __construct(
 
         $allowedTypes[] =
             ShareTransaction::TYPE_WITHDRAW;
+
+        $allowedTypes[] =
+            ShareTransaction::TYPE_SETTLEMENT_GAIN;
+
+        $allowedTypes[] =
+            ShareTransaction::TYPE_SETTLEMENT_LOSS;
     }
 
     if ($canViewTransfer) {
@@ -457,6 +463,8 @@ public function __construct(
                     WHEN transaction_type = ? AND shareholder_id = ? THEN -total_amount
                     WHEN transaction_type = ? AND to_shareholder_id = ? THEN total_amount
                     WHEN transaction_type = ? AND shareholder_id = ? THEN -total_amount
+                    WHEN transaction_type = ? AND shareholder_id = ? THEN -total_amount
+                    WHEN transaction_type = ? AND shareholder_id = ? THEN total_amount
                     ELSE 0
                  END), 0) as total_amount',
                 [
@@ -475,6 +483,10 @@ public function __construct(
                     ShareTransaction::TYPE_TRANSFER,
                     $summaryShareholderId,
                     ShareTransaction::TYPE_TRANSFER,
+                    $summaryShareholderId,
+                    ShareTransaction::TYPE_SETTLEMENT_GAIN,
+                    $summaryShareholderId,
+                    ShareTransaction::TYPE_SETTLEMENT_LOSS,
                     $summaryShareholderId,
                 ]
             )
@@ -491,6 +503,8 @@ public function __construct(
                  COALESCE(SUM(CASE
                     WHEN transaction_type = ? THEN total_amount
                     WHEN transaction_type = ? THEN -total_amount
+                    WHEN transaction_type = ? THEN -total_amount
+                    WHEN transaction_type = ? THEN total_amount
                     ELSE 0
                  END), 0) as total_amount',
                 [
@@ -498,6 +512,8 @@ public function __construct(
                     ShareTransaction::TYPE_WITHDRAW,
                     ShareTransaction::TYPE_BUY,
                     ShareTransaction::TYPE_WITHDRAW,
+                    ShareTransaction::TYPE_SETTLEMENT_GAIN,
+                    ShareTransaction::TYPE_SETTLEMENT_LOSS,
                 ]
             )
             ->first();

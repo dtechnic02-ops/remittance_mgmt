@@ -73,6 +73,7 @@ class ShareTransactionService
                 $this->multiplyByKitta($perKittaValue, $kitta);
 
             $investmentEffect = $totalAmount;
+            $settlementDifference = 0.0;
 
             if ($transactionType === ShareTransaction::TYPE_WITHDRAW) {
                 if ((int) $shareholder->kitta < $kitta) {
@@ -81,16 +82,24 @@ class ShareTransactionService
                     );
                 }
 
-                if ((int) $shareholder->total_investment < $totalAmount) {
+                $isFullWithdrawal = (int) $shareholder->kitta === $kitta;
+
+                if (
+                    ! $isFullWithdrawal
+                    && (int) $shareholder->total_investment < $totalAmount
+                ) {
                     throw new RuntimeException(
                         'Shareholder investment cannot become negative.'
                     );
                 }
 
-                if ((int) $shareholder->kitta === $kitta) {
+                if ($isFullWithdrawal) {
                     $investmentEffect = $this->decimalValue(
                         $shareholder->total_investment
                     );
+                    $settlementDifference =
+                        (float) $shareholder->total_investment
+                        - (float) $totalAmount;
                 }
             }
 
@@ -149,6 +158,7 @@ class ShareTransactionService
                     'note' => $transaction->note,
                     'created_by' => $transaction->created_by,
                 ]);
+
             }
 
             /*
@@ -190,6 +200,34 @@ class ShareTransactionService
                     'note' => $transaction->note,
                     'created_by' => $transaction->created_by,
                 ]);
+
+                if ($settlementDifference !== 0.0) {
+                    $settlement = ShareTransaction::create([
+                        'transaction_number' => TransactionNumberService::temporary(),
+                        'transaction_type' => $settlementDifference > 0
+                            ? ShareTransaction::TYPE_SETTLEMENT_GAIN
+                            : ShareTransaction::TYPE_SETTLEMENT_LOSS,
+                        'shareholder_id' => $shareholder->id,
+                        'account_id' => $account->id,
+                        'date_ad' => $transaction->date_ad->format('Y-m-d'),
+                        'date_bs' => $transaction->date_bs,
+                        'financial_year' => $transaction->financial_year,
+                        'kitta' => 0,
+                        'per_kitta_value' => '0.00',
+                        'total_amount' => $this->decimalValue(abs($settlementDifference)),
+                        'investment_effect' => $this->decimalValue(abs($settlementDifference)),
+                        'settlement_of_id' => $transaction->id,
+                        'reference' => $transaction->transaction_number,
+                        'note' => 'Automatic full withdrawal share settlement.',
+                        'status' => 'active',
+                        'created_by' => $transaction->created_by,
+                    ]);
+                    $settlement->transaction_number = TransactionNumberService::fromId(
+                        'SET-',
+                        $settlement->id
+                    );
+                    $settlement->save();
+                }
             }
 
             return $transaction->fresh([
@@ -210,12 +248,12 @@ public function updateMetadata(
             ->lockForUpdate()
             ->findOrFail($transaction->id);
 
-        if (
-            $transaction->transaction_type
-            === ShareTransaction::TYPE_TRANSFER
-        ) {
+        if (! in_array($transaction->transaction_type, [
+            ShareTransaction::TYPE_BUY,
+            ShareTransaction::TYPE_WITHDRAW,
+        ], true)) {
             throw new RuntimeException(
-                'Share transfers cannot be edited from Share Transactions.'
+                'This share transaction type cannot be edited.'
             );
         }
 
@@ -317,6 +355,15 @@ public function updateMetadata(
                 ->lockForUpdate()
                 ->findOrFail($transaction->id);
 
+            if (in_array($transaction->transaction_type, [
+                ShareTransaction::TYPE_SETTLEMENT_GAIN,
+                ShareTransaction::TYPE_SETTLEMENT_LOSS,
+            ], true)) {
+                $transaction = ShareTransaction::query()
+                    ->lockForUpdate()
+                    ->findOrFail($transaction->settlement_of_id);
+            }
+
             if ($transaction->transaction_type === ShareTransaction::TYPE_TRANSFER) {
                 throw new RuntimeException(
                     'Share transfers cannot be cancelled. Contact the administrator if a correction is required.'
@@ -340,6 +387,12 @@ public function updateMetadata(
             $shareholder = Shareholder::query()
                 ->lockForUpdate()
                 ->findOrFail($transaction->shareholder_id);
+
+            $settlement = ShareTransaction::query()
+                ->where('settlement_of_id', $transaction->id)
+                ->where('status', 'active')
+                ->lockForUpdate()
+                ->first();
 
             /*
              * पहिले financial ledger reverse गर्ने।
@@ -428,6 +481,15 @@ public function updateMetadata(
                 'cancelled_at' => now(),
                 'cancellation_reason' => $reason,
             ]);
+
+            if ($settlement) {
+                $settlement->update([
+                    'status' => 'cancelled',
+                    'cancelled_by' => $userId,
+                    'cancelled_at' => now(),
+                    'cancellation_reason' => $reason,
+                ]);
+            }
 
             return $transaction->fresh([
                 'shareholder',

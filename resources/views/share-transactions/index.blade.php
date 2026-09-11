@@ -394,6 +394,14 @@
                                         $transaction->transaction_type
                                         === \App\Models\ShareTransaction::TYPE_TRANSFER;
 
+                                    $isSettlementGain =
+                                        $transaction->transaction_type
+                                        === \App\Models\ShareTransaction::TYPE_SETTLEMENT_GAIN;
+
+                                    $isSettlementLoss =
+                                        $transaction->transaction_type
+                                        === \App\Models\ShareTransaction::TYPE_SETTLEMENT_LOSS;
+
                                 @endphp
 
 
@@ -424,10 +432,16 @@
                                                 WITHDRAW
                                             </span>
 
-                                        @else
+                                        @elseif ($isTransfer)
 
                                             <span class="inline-flex rounded-md bg-purple-100 px-2.5 py-1 text-xs font-bold text-purple-700">
                                                 TRANSFER
+                                            </span>
+
+                                        @else
+
+                                            <span class="inline-flex rounded-md bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-700">
+                                                {{ $isSettlementGain ? 'SETTLEMENT GAIN' : 'SETTLEMENT LOSS' }}
                                             </span>
 
                                         @endif
@@ -523,10 +537,22 @@
                                                 -{{ number_format($transaction->total_amount) }}
                                             </span>
 
-                                        @else
+                                        @elseif ($isTransfer)
 
                                             <span class="text-purple-700">
                                                 {{ number_format($transaction->total_amount) }}
+                                            </span>
+
+                                        @elseif ($isSettlementGain)
+
+                                            <span class="text-red-700">
+                                                -{{ number_format($transaction->total_amount) }}
+                                            </span>
+
+                                        @elseif ($isSettlementLoss)
+
+                                            <span class="text-green-700">
+                                                +{{ number_format($transaction->total_amount) }}
                                             </span>
 
                                         @endif

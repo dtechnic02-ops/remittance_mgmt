@@ -100,7 +100,13 @@ class StaffDashboardController extends Controller
             ]
         )->all());
 
-        return view('staff.dashboard', compact('summary', 'financialYear', 'monthly', 'chartMax'));
+        return view('staff.dashboard', compact(
+            'summary',
+            'financialYear',
+            'monthly',
+            'chartMax',
+            'overallExpense'
+        ));
     }
 
     private function monthlyPerformance(string $financialYear): array

@@ -78,6 +78,7 @@ class User extends Authenticatable
             return in_array($code, [
                 'customer.view',
                 'remittance.view',
+                'account.view',
                 'account-transfer.view',
                 'ledger.view',
                 'income.view',

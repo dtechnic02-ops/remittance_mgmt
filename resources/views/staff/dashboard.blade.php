@@ -109,6 +109,7 @@
                     <x-dashboard-card
                         title="Total Expense"
                         :value="'-'.number_format($summary['expense'])"
+                        :detail="'Overall: Rs. '.number_format($overallExpense)"
                     />
 
                     <x-dashboard-card

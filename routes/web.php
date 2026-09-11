@@ -147,7 +147,7 @@ Route::post(
 )->name('shareholder-accounts.deactivate');
 });
 
-Route::middleware(['auth', 'verified', 'admin-or-help-desk'])->group(function () {
+Route::middleware(['auth', 'verified', 'permission:account.view'])->group(function () {
     Route::get('/accounts', [AccountController::class, 'index'])
         ->name('accounts.index');
     Route::get('/accounts/{account}', [AccountController::class, 'show'])

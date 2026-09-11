@@ -131,6 +131,7 @@
 
 @if (
     auth()->user()->isAdmin()
+    || auth()->user()->hasPermission('account.view')
     || auth()->user()->hasPermission('account-transfer.view')
     || auth()->user()->hasPermission('ledger.view')
     || auth()->user()->hasPermission('income.view')
@@ -144,7 +145,7 @@
 @endif
 
                 {{-- Accounts --}}
-                @if (auth()->user()->isAdmin() || auth()->user()->isHelpDesk())
+                @if (auth()->user()->hasPermission('account.view'))
                     <a href="{{ route('accounts.index') }}"
                        class="
                             block rounded-md px-4 py-2.5 text-sm

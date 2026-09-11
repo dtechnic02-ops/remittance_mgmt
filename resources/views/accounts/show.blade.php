@@ -6,10 +6,12 @@
             </h2>
 
             <div class="flex gap-4">
-                <a href="{{ route('accounts.edit', $account) }}"
-                   class="text-indigo-600 hover:text-indigo-900">
-                    Edit
-                </a>
+                @if (auth()->user()->isAdmin())
+                    <a href="{{ route('accounts.edit', $account) }}"
+                       class="text-indigo-600 hover:text-indigo-900">
+                        Edit
+                    </a>
+                @endif
 
                 <a href="{{ route('accounts.index') }}"
                    class="text-gray-600 hover:text-gray-900">
