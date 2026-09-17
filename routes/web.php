@@ -10,6 +10,7 @@ use App\Http\Controllers\StaffPermissionController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\AccountTransferController;
 use App\Http\Controllers\LedgerController;
+use App\Http\Controllers\ProfitLedgerController;
 use App\Http\Controllers\ExpenseCategoryController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\IncomeCategoryController;
@@ -315,6 +316,10 @@ Route::get(
     '/ledger',
     [LedgerController::class, 'index']
 )->middleware('permission:ledger.view')->name('ledger.index');
+Route::get(
+    '/profit-ledger',
+    [ProfitLedgerController::class, 'index']
+)->middleware('permission:ledger.view')->name('profit-ledger.index');
 Route::resource(
     'expense-categories',
     ExpenseCategoryController::class

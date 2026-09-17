@@ -181,6 +181,16 @@
        ">
         Financial Ledger
     </a>
+    <a href="{{ route('profit-ledger.index') }}"
+       class="
+            block rounded-md px-4 py-2.5 text-sm
+            {{ request()->routeIs('profit-ledger.*')
+                ? 'bg-gray-800 text-white'
+                : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+            }}
+       ">
+        Profit Ledger
+    </a>
 @endif
 @if (auth()->user()->hasPermission('income.view'))
     <a href="{{ route('incomes.index') }}"

@@ -18,6 +18,7 @@ class StaffAuthorizationTest extends TestCase
         $this->actingAs($admin)->get(route('remittances.index'))->assertOk();
         $this->actingAs($admin)->get(route('expenses.create'))->assertOk();
         $this->actingAs($admin)->get(route('ledger.index'))->assertOk();
+        $this->actingAs($admin)->get(route('profit-ledger.index'))->assertOk();
     }
 
     public function test_staff_without_permission_is_denied_direct_access(): void
@@ -31,6 +32,7 @@ class StaffAuthorizationTest extends TestCase
             ->post('/remittances/1/cancel', ['cancellation_reason' => 'No access'])
             ->assertForbidden();
         $this->actingAs($staff)->get(route('ledger.index'))->assertForbidden();
+        $this->actingAs($staff)->get(route('profit-ledger.index'))->assertForbidden();
     }
 
     public function test_partial_staff_permission_allows_only_that_operation(): void

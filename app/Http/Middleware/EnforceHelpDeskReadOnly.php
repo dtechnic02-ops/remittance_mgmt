@@ -24,6 +24,7 @@ class EnforceHelpDeskReadOnly
         'account-transfers.index',
         'account-transfers.show',
         'ledger.index',
+        'profit-ledger.index',
         'incomes.index',
         'incomes.show',
         'incomes.attachment',

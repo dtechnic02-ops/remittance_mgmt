@@ -41,6 +41,7 @@ class HelpDeskAuthorizationTest extends TestCase
             'accounts.index',
             'account-transfers.index',
             'ledger.index',
+            'profit-ledger.index',
             'incomes.index',
             'expenses.index',
             'lenders.index',
@@ -109,7 +110,7 @@ class HelpDeskAuthorizationTest extends TestCase
 
         foreach ([
             'Customers', 'Remittances', 'Accounts', 'Account Transfers',
-            'Financial Ledger', 'Income', 'Expenses', 'Lenders',
+            'Financial Ledger', 'Profit Ledger', 'Income', 'Expenses', 'Lenders',
             'Borrowings', 'Shareholders', 'Share Transactions',
         ] as $label) {
             $response->assertSee($label);
