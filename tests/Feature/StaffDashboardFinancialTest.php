@@ -10,6 +10,7 @@ use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Models\Income;
 use App\Models\IncomeCategory;
+use App\Models\LedgerEntry;
 use App\Models\Lender;
 use App\Models\RemittanceTransaction;
 use App\Models\Shareholder;
@@ -150,6 +151,46 @@ $this->assertSame(
         $this->assertContains('staff', $middleware);
         $this->assertNotContains('permission:dashboard.view', $middleware);
         $this->assertNotContains('permission:financial-dashboard.view', $middleware);
+    }
+
+    public function test_staff_bank_balance_includes_active_bank_and_blb_only(): void
+    {
+        $admin = $this->user('admin');
+        $staff = $this->user('staff');
+        $cash = $this->account($admin, 'CASH', Account::TYPE_CASH, 179995);
+        $this->account($admin, 'BANK', Account::TYPE_BANK, 0);
+        $this->account($admin, 'BLB', Account::TYPE_BLB, 85802);
+        $this->account($admin, 'REM', Account::TYPE_REMITTANCE, -4000);
+        $this->account($admin, 'FD', Account::TYPE_FIXED_DEPOSIT, 9000);
+        $this->account($admin, 'INACTIVE-BANK', Account::TYPE_BANK, 5000, false);
+        $this->account($admin, 'INACTIVE-BLB', Account::TYPE_BLB, 7000, false);
+        $incomeCount = Income::query()->count();
+        $ledgerCount = LedgerEntry::query()->count();
+        $balances = Account::query()->orderBy('id')->pluck('current_balance', 'id')->all();
+
+        $staffSummary = $this->actingAs($staff)
+            ->get(route('staff.dashboard'))
+            ->assertOk()
+            ->viewData('summary');
+
+        $this->assertSame(179995, $staffSummary['cash']);
+        $this->assertSame(85802, $staffSummary['bank']);
+        $this->assertSame(265797, $staffSummary['available']);
+        $this->assertSame(179995 + 85802, $staffSummary['available']);
+        $this->assertSame($staffSummary['cash'] + $staffSummary['bank'], $staffSummary['available']);
+        $this->assertSame(-4000, $staffSummary['remittance']);
+        $this->assertNotSame($staffSummary['cash'], $staffSummary['bank']);
+        $this->assertSame($incomeCount, Income::query()->count());
+        $this->assertSame($ledgerCount, LedgerEntry::query()->count());
+        $this->assertSame($balances, Account::query()->orderBy('id')->pluck('current_balance', 'id')->all());
+        $this->assertSame(179995, $cash->fresh()->current_balance);
+
+        $adminSummary = $this->actingAs($admin)
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->viewData('summary');
+        $this->assertSame(0, $adminSummary['bank']);
+        $this->assertSame(179995, $adminSummary['available']);
     }
 
     private function seedDashboardData(): array

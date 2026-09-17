@@ -39,6 +39,7 @@ class StaffDashboardController extends Controller
             ->whereIn('type', [
                 Account::TYPE_CASH,
                 Account::TYPE_BANK,
+                Account::TYPE_BLB,
                 Account::TYPE_REMITTANCE,
             ])
             ->selectRaw('type, COALESCE(SUM(current_balance), 0) as total')
@@ -46,7 +47,8 @@ class StaffDashboardController extends Controller
             ->pluck('total', 'type');
 
         $cash = (int) ($accountBalances[Account::TYPE_CASH] ?? 0);
-        $bank = (int) ($accountBalances[Account::TYPE_BANK] ?? 0);
+        $bank = (int) ($accountBalances[Account::TYPE_BANK] ?? 0)
+            + (int) ($accountBalances[Account::TYPE_BLB] ?? 0);
         $income = (int) Income::query()
             ->where('status', 'active')
             ->where('financial_year', $financialYear)
