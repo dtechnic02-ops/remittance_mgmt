@@ -257,6 +257,119 @@ class ProfitLedgerTest extends TestCase
             ->assertViewIs('profit-ledger.print');
     }
 
+    public function test_financial_year_and_date_filters_apply_together_and_alone(): void
+    {
+        $admin = $this->admin();
+        $seed = $this->seedTransactions($admin);
+        $this->income($admin, $seed['incomeCategory'], $seed['cash'], '2026-08-10', 7777, 'active', '2082/83');
+        $this->expense($admin, $seed['expenseCategory'], $seed['cash'], '2026-09-10', 333, 'active', '2082/83');
+        $this->remittance($admin, $seed['customer'], $seed['provider'], $seed['cash'], '2026-09-05', 15, 'active', '2082/83');
+        $this->income($admin, $seed['incomeCategory'], $seed['cash'], '2026-08-10', 111, 'cancelled', '2082/83');
+
+        $fyOnly = $this->actingAs($admin)
+            ->get(route('profit-ledger.index', ['financial_year' => '2082/83']))
+            ->assertOk()
+            ->assertSee('FY 2082/83')
+            ->viewData();
+        $this->assertSame(7777, $fyOnly['income']);
+        $this->assertSame(15, $fyOnly['remittanceCharge']);
+        $this->assertSame(333, $fyOnly['expense']);
+        $this->assertSame(7777 + 15 - 333, $fyOnly['profit']);
+        $this->assertSame('2082/83', $fyOnly['financialYear']);
+
+        $fyCurrent = $this->actingAs($admin)
+            ->get(route('profit-ledger.index', ['financial_year' => '2083/84']))
+            ->assertOk()
+            ->viewData();
+        $this->assertSame(35072, $fyCurrent['income']);
+        $this->assertSame(60, $fyCurrent['remittanceCharge']);
+        $this->assertSame(27000, $fyCurrent['expense']);
+        $this->assertSame(35072 + 60 - 27000, $fyCurrent['profit']);
+
+        $datesOnly = $this->actingAs($admin)
+            ->get(route('profit-ledger.index', [
+                'date_from' => '2026-08-01',
+                'date_to' => '2026-09-17',
+            ]))
+            ->assertOk()
+            ->viewData();
+        $this->assertSame('all', $datesOnly['financialYear']);
+        $this->assertSame(30072 + 7777, $datesOnly['income']);
+        $this->assertSame(20 + 15, $datesOnly['remittanceCharge']);
+        $this->assertSame(26000 + 333, $datesOnly['expense']);
+
+        $fyAndDates = $this->actingAs($admin)
+            ->get(route('profit-ledger.index', [
+                'financial_year' => '2083/84',
+                'date_from' => '2026-08-01',
+                'date_to' => '2026-09-17',
+            ]))
+            ->assertOk()
+            ->viewData();
+        $this->assertSame(30072, $fyAndDates['income']);
+        $this->assertSame(20, $fyAndDates['remittanceCharge']);
+        $this->assertSame(26000, $fyAndDates['expense']);
+        $this->assertSame(30072 + 20 - 26000, $fyAndDates['profit']);
+
+        $reset = $this->actingAs($admin)
+            ->get(route('profit-ledger.index'))
+            ->assertOk()
+            ->viewData();
+        $this->assertSame('all', $reset['financialYear']);
+        $this->assertSame('', $reset['dateFrom']);
+        $this->assertSame('', $reset['dateTo']);
+        $this->assertSame(35072 + 7777, $reset['income']);
+        $this->assertSame(60 + 15, $reset['remittanceCharge']);
+        $this->assertSame(27000 + 333, $reset['expense']);
+        $this->assertSame((35072 + 7777) + (60 + 15) - (27000 + 333), $reset['profit']);
+    }
+
+    public function test_print_preserves_financial_year_and_dates_and_writes_nothing(): void
+    {
+        $admin = $this->admin();
+        $seed = $this->seedTransactions($admin);
+        $this->income($admin, $seed['incomeCategory'], $seed['cash'], '2026-08-10', 7777, 'active', '2082/83');
+        CompanyInfo::create(['company_name' => 'Asha Enterprises']);
+        $filters = [
+            'financial_year' => '2083/84',
+            'date_from' => '2026-08-01',
+            'date_to' => '2026-09-17',
+        ];
+        $incomeCount = Income::query()->count();
+        $ledgerCount = LedgerEntry::query()->count();
+        $balances = Account::query()->orderBy('id')->pluck('current_balance', 'id')->all();
+
+        $screen = $this->actingAs($admin)
+            ->get(route('profit-ledger.index', $filters))
+            ->assertOk()
+            ->viewData();
+
+        $print = $this->actingAs($admin)
+            ->get(route('profit-ledger.index', $filters + ['output' => 'print']))
+            ->assertOk()
+            ->assertViewIs('profit-ledger.print')
+            ->assertSee('Financial Year: 2083/84')
+            ->assertSee('Start Date: 2026-08-01')
+            ->assertSee('End Date: 2026-09-17')
+            ->viewData();
+
+        $this->assertSame($screen['income'], $print['income']);
+        $this->assertSame($screen['remittanceCharge'], $print['remittanceCharge']);
+        $this->assertSame($screen['expense'], $print['expense']);
+        $this->assertSame($screen['profit'], $print['profit']);
+        $this->assertSame('2083/84', $print['financialYear']);
+        $this->assertSame('2026-08-01', $print['dateFrom']);
+        $this->assertSame('2026-09-17', $print['dateTo']);
+        $this->assertSame(30072, $print['income']);
+        $this->assertSame(20, $print['remittanceCharge']);
+        $this->assertSame(26000, $print['expense']);
+        $this->assertSame(4092, $print['profit']);
+        $this->assertSame($incomeCount, Income::query()->count());
+        $this->assertSame($ledgerCount, LedgerEntry::query()->count());
+        $this->assertSame($balances, Account::query()->orderBy('id')->pluck('current_balance', 'id')->all());
+        $this->assertSame(0, Income::query()->where('amount', 20)->count());
+    }
+
     private function admin(): User
     {
         return User::factory()->create([
@@ -325,7 +438,13 @@ class ProfitLedgerTest extends TestCase
         $this->remittance($user, $customer, $provider, $cash, '2026-09-05', 75, 'cancelled');
         $this->remittance($user, $customer, $provider, $cash, '2026-07-15', 40, 'active');
 
-        return ['cash' => $cash];
+        return [
+            'cash' => $cash,
+            'provider' => $provider,
+            'customer' => $customer,
+            'incomeCategory' => $incomeCategory,
+            'expenseCategory' => $expenseCategory,
+        ];
     }
 
     private function income(
@@ -334,7 +453,8 @@ class ProfitLedgerTest extends TestCase
         Account $account,
         string $dateAd,
         int $amount,
-        string $status
+        string $status,
+        string $fy = '2083/84'
     ): void {
         Income::create([
             'income_number' => uniqid('INC-'),
@@ -342,7 +462,7 @@ class ProfitLedgerTest extends TestCase
             'account_id' => $account->id,
             'date_ad' => $dateAd,
             'date_bs' => '2083-04-01',
-            'financial_year' => '2083/84',
+            'financial_year' => $fy,
             'amount' => $amount,
             'status' => $status,
             'created_by' => $user->id,
@@ -355,7 +475,8 @@ class ProfitLedgerTest extends TestCase
         Account $account,
         string $dateAd,
         int $amount,
-        string $status
+        string $status,
+        string $fy = '2083/84'
     ): void {
         Expense::create([
             'expense_number' => uniqid('EXP-'),
@@ -363,7 +484,7 @@ class ProfitLedgerTest extends TestCase
             'account_id' => $account->id,
             'date_ad' => $dateAd,
             'date_bs' => '2083-04-01',
-            'financial_year' => '2083/84',
+            'financial_year' => $fy,
             'amount' => $amount,
             'status' => $status,
             'created_by' => $user->id,
@@ -377,7 +498,8 @@ class ProfitLedgerTest extends TestCase
         Account $cash,
         string $dateAd,
         int $charge,
-        string $status
+        string $status,
+        string $fy = '2083/84'
     ): void {
         RemittanceTransaction::create([
             'transaction_number' => uniqid('REM-'),
@@ -387,7 +509,7 @@ class ProfitLedgerTest extends TestCase
             'cash_account_id' => $cash->id,
             'date_ad' => $dateAd,
             'date_bs' => '2083-04-01',
-            'financial_year' => '2083/84',
+            'financial_year' => $fy,
             'principal_amount' => 100,
             'service_charge' => $charge,
             'total_cash_received' => 100 + $charge,

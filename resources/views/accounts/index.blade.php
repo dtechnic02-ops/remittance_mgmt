@@ -109,6 +109,21 @@
                                         </td>
                                     </tr>
                                 @endforelse
+                                @if ($accounts->isNotEmpty())
+                                    <tr class="border-b">
+                                        <td class="px-4 py-3"></td>
+                                        <td class="px-4 py-3 font-bold">
+                                            TOTAL
+                                        </td>
+                                        <td class="px-4 py-3"></td>
+                                        <td class="px-4 py-3 text-right font-bold
+                                            {{ $accounts->sum('current_balance') < 0 ? 'text-red-600' : '' }}">
+                                            {{ number_format($accounts->sum('current_balance')) }}
+                                        </td>
+                                        <td class="px-4 py-3"></td>
+                                        <td class="px-4 py-3"></td>
+                                    </tr>
+                                @endif
                             </tbody>
                         </table>
                     </div>

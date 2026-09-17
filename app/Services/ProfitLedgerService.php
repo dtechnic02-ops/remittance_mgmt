@@ -17,16 +17,32 @@ class ProfitLedgerService
      *     profit: int
      * }
      */
-    public function summarize(?string $dateFrom, ?string $dateTo): array
-    {
-        $income = $this->sumActive(Income::query(), 'amount', $dateFrom, $dateTo);
+    public function summarize(
+        ?string $dateFrom,
+        ?string $dateTo,
+        ?string $financialYear = null
+    ): array {
+        $income = $this->sumActive(
+            Income::query(),
+            'amount',
+            $dateFrom,
+            $dateTo,
+            $financialYear
+        );
         $remittanceCharge = $this->sumActive(
             RemittanceTransaction::query(),
             'service_charge',
             $dateFrom,
-            $dateTo
+            $dateTo,
+            $financialYear
         );
-        $expense = $this->sumActive(Expense::query(), 'amount', $dateFrom, $dateTo);
+        $expense = $this->sumActive(
+            Expense::query(),
+            'amount',
+            $dateFrom,
+            $dateTo,
+            $financialYear
+        );
 
         return [
             'income' => $income,
@@ -40,9 +56,18 @@ class ProfitLedgerService
         Builder $query,
         string $column,
         ?string $dateFrom,
-        ?string $dateTo
+        ?string $dateTo,
+        ?string $financialYear
     ): int {
         $query->where('status', 'active');
+
+        if (
+            $financialYear !== null
+            && $financialYear !== ''
+            && strtolower($financialYear) !== 'all'
+        ) {
+            $query->where('financial_year', $financialYear);
+        }
 
         if ($dateFrom !== null && $dateFrom !== '') {
             $query->whereDate('date_ad', '>=', $dateFrom);

@@ -28,6 +28,7 @@
     <p class="company">{{ $companyName }}</p>
     <h1>PROFIT LEDGER</h1>
     <div class="meta">
+        Financial Year: {{ strtolower($financialYear) === 'all' ? 'All FY' : $financialYear }}<br>
         Start Date: {{ $dateFrom !== '' ? $dateFrom : 'All dates' }}<br>
         End Date: {{ $dateTo !== '' ? $dateTo : 'All dates' }}<br>
         Printed: {{ $printedAt }}

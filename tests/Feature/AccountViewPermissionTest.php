@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Account;
 use App\Models\Permission;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -57,6 +58,34 @@ class AccountViewPermissionTest extends TestCase
             ->assertDontSee('href="'.route('accounts.index').'"', false);
 
         $this->actingAs($staff)->get(route('accounts.index'))->assertForbidden();
+    }
+
+    public function test_accounts_index_shows_total_of_displayed_current_balances(): void
+    {
+        $admin = $this->user('admin', 'admin-total@example.com');
+        $this->account($admin, 'ALPHA', 1000000);
+        $this->account($admin, 'BETA', 572994);
+        $this->account($admin, 'GAMMA', 0);
+
+        $this->actingAs($admin)
+            ->get(route('accounts.index'))
+            ->assertOk()
+            ->assertSee('TOTAL')
+            ->assertSee('1,572,994');
+    }
+
+    private function account(User $user, string $code, int $balance): void
+    {
+        Account::create([
+            'name' => $code,
+            'code' => $code,
+            'type' => Account::TYPE_CASH,
+            'opening_balance' => $balance,
+            'current_balance' => $balance,
+            'is_active' => true,
+            'created_by' => $user->id,
+            'updated_by' => $user->id,
+        ]);
     }
 
     public function test_account_transfer_permission_remains_independent(): void

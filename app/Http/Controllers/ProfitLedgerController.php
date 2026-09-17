@@ -3,6 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\CompanyInfo;
+use App\Models\Expense;
+use App\Models\Income;
+use App\Models\RemittanceTransaction;
+use App\Services\FinancialDateService;
 use App\Services\ProfitLedgerService;
 use Illuminate\Http\Request;
 
@@ -18,6 +22,7 @@ class ProfitLedgerController extends Controller
         $this->ensureAdminOrStaff();
 
         $validated = $request->validate([
+            'financial_year' => ['nullable', 'string', 'max:10'],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
             'output' => ['nullable', 'in:print'],
@@ -25,15 +30,36 @@ class ProfitLedgerController extends Controller
 
         $dateFrom = trim((string) ($validated['date_from'] ?? ''));
         $dateTo = trim((string) ($validated['date_to'] ?? ''));
+        $financialYear = trim((string) ($validated['financial_year'] ?? 'all'));
+        if ($financialYear === '') {
+            $financialYear = 'all';
+        }
+
+        $currentFinancialYear = app(FinancialDateService::class)
+            ->fromEnglishDate(now()->toDateString())['financial_year'];
+        $financialYears = collect()
+            ->merge($this->storedFinancialYears(Income::query()))
+            ->merge($this->storedFinancialYears(Expense::query()))
+            ->merge($this->storedFinancialYears(RemittanceTransaction::query()))
+            ->unique()
+            ->sortDesc()
+            ->values();
+        if (! $financialYears->contains($currentFinancialYear)) {
+            $financialYears->prepend($currentFinancialYear);
+        }
 
         $summary = $this->service->summarize(
             $dateFrom !== '' ? $dateFrom : null,
-            $dateTo !== '' ? $dateTo : null
+            $dateTo !== '' ? $dateTo : null,
+            $financialYear
         );
 
         $payload = [
             'dateFrom' => $dateFrom,
             'dateTo' => $dateTo,
+            'financialYear' => $financialYear,
+            'financialYears' => $financialYears,
+            'currentFinancialYear' => $currentFinancialYear,
             'income' => $summary['income'],
             'remittanceCharge' => $summary['remittance_charge'],
             'expense' => $summary['expense'],
@@ -49,6 +75,16 @@ class ProfitLedgerController extends Controller
         }
 
         return view('profit-ledger.index', $payload);
+    }
+
+    private function storedFinancialYears($query)
+    {
+        return $query
+            ->whereNotNull('financial_year')
+            ->where('financial_year', '!=', '')
+            ->distinct()
+            ->orderByDesc('financial_year')
+            ->pluck('financial_year');
     }
 
     private function ensureAdminOrStaff(): void

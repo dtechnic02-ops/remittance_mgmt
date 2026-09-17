@@ -34,6 +34,22 @@
             <div class="overflow-hidden rounded-xl bg-white shadow-sm">
                 <div class="border-b border-gray-200 p-4">
                     <form method="GET" action="{{ route('profit-ledger.index') }}" class="flex flex-wrap items-end gap-3">
+                        <div style="width: 170px;">
+                            <label for="financial_year" class="mb-1 block text-xs font-medium text-gray-600">
+                                Financial Year
+                            </label>
+                            <select id="financial_year"
+                                    name="financial_year"
+                                    class="w-full rounded-md border-gray-300 text-sm shadow-sm">
+                                <option value="all" @selected(strtolower($financialYear) === 'all')>All FY</option>
+                                @foreach ($financialYears as $fy)
+                                    <option value="{{ $fy }}" @selected($financialYear === $fy)>
+                                        {{ $fy }}@if ($fy === $currentFinancialYear) (Current)@endif
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
                         <div style="width: 160px;">
                             <label for="date_from" class="mb-1 block text-xs font-medium text-gray-600">
                                 Start Date
@@ -75,7 +91,7 @@
 
                 <div class="p-6">
                     <p class="mb-4 text-sm font-medium text-gray-700">
-                        Period: {{ $period }}
+                        Period: {{ $period }}@if (strtolower($financialYear) !== 'all') · FY {{ $financialYear }}@endif
                     </p>
 
                     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
