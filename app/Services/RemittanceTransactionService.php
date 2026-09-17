@@ -26,7 +26,11 @@ class RemittanceTransactionService
 
             $providerAccount = Account::query()
                 ->whereKey($data['provider_account_id'])
-                ->where('type', Account::TYPE_REMITTANCE)
+                ->whereIn('type', [
+                    Account::TYPE_REMITTANCE,
+                    Account::TYPE_BLB,
+                    Account::TYPE_BANK,
+                ])
                 ->where('is_active', true)
                 ->firstOrFail();
 

@@ -127,7 +127,11 @@ class RemittanceTransactionController extends Controller
             ->get();
 
         $providers = Account::query()
-            ->where('type', Account::TYPE_REMITTANCE)
+            ->whereIn('type', [
+                Account::TYPE_REMITTANCE,
+                Account::TYPE_BLB,
+                Account::TYPE_BANK,
+            ])
             ->where('is_active', true)
             ->orderBy('name')
             ->get();

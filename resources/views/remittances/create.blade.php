@@ -76,26 +76,49 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
 
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">
+                            <label for="customer_search" class="block text-sm font-medium text-gray-700">
                                 Customer *
                             </label>
 
-                            <select name="customer_id"
-                                    required
-                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                            <div id="customer_selector" class="relative mt-1">
+                                <input type="hidden"
+                                       name="customer_id"
+                                       id="customer_id"
+                                       value="{{ old('customer_id') }}"
+                                       required>
 
-                                <option value="">Select Customer</option>
+                                <input type="search"
+                                       id="customer_search"
+                                       autocomplete="off"
+                                       placeholder="Search name, code, or mobile"
+                                       class="block w-full rounded-md border-gray-300 shadow-sm">
 
-                                @foreach ($customers as $customer)
-                                    <option value="{{ $customer->id }}"
-                                        @selected(old('customer_id') == $customer->id)>
-                                        {{ $customer->customer_code }} - {{ $customer->name }}
-                                        @if ($customer->mobile)
-                                            - {{ $customer->mobile }}
-                                        @endif
-                                    </option>
-                                @endforeach
-                            </select>
+                                <div id="customer_selected"
+                                     class="hidden items-center justify-between rounded-md border border-gray-300 bg-gray-50 px-3 py-2">
+                                    <span id="customer_selected_label" class="text-sm text-gray-800"></span>
+                                    <button type="button"
+                                            id="customer_clear"
+                                            class="ml-3 text-xs font-medium text-gray-600 hover:text-gray-900">
+                                        Clear
+                                    </button>
+                                </div>
+
+                                <ul id="customer_results"
+                                    class="absolute z-20 mt-1 hidden max-h-48 w-full overflow-y-auto rounded-md border border-gray-200 bg-white py-1 shadow-sm"></ul>
+                            </div>
+
+                            @php
+                                $customerSearchData = $customers->map(function ($customer) {
+                                    return [
+                                        'id' => $customer->id,
+                                        'name' => $customer->name,
+                                        'customer_code' => $customer->customer_code,
+                                        'mobile' => $customer->mobile,
+                                    ];
+                                })->values();
+                            @endphp
+
+                            <script type="application/json" id="customer_search_data">@json($customerSearchData)</script>
 
                             @error('customer_id')
                                 <p class="mt-1 text-sm text-red-600">
@@ -439,6 +462,181 @@
 
         const receiveEffect =
             document.getElementById('receive_effect');
+
+        const customerSearchDataEl =
+            document.getElementById('customer_search_data');
+        const customerIdInput =
+            document.getElementById('customer_id');
+        const customerSearchInput =
+            document.getElementById('customer_search');
+        const customerResults =
+            document.getElementById('customer_results');
+        const customerSelected =
+            document.getElementById('customer_selected');
+        const customerSelectedLabel =
+            document.getElementById('customer_selected_label');
+        const customerClear =
+            document.getElementById('customer_clear');
+        const customerSelector =
+            document.getElementById('customer_selector');
+        let customerSearchItems = [];
+
+        function customerLabel(customer) {
+            let label = customer.customer_code
+                ? customer.customer_code + ' - ' + customer.name
+                : customer.name;
+
+            if (customer.mobile) {
+                label += ' - ' + customer.mobile;
+            }
+
+            return label;
+        }
+
+        function hideCustomerResults() {
+            if (!customerResults) {
+                return;
+            }
+
+            customerResults.innerHTML = '';
+            customerResults.classList.add('hidden');
+        }
+
+        function setSelectedCustomer(customer) {
+            if (!customerIdInput || !customerSearchInput || !customerSelected) {
+                return;
+            }
+
+            customerIdInput.value = customer ? String(customer.id) : '';
+            customerSearchInput.setCustomValidity('');
+
+            if (customer) {
+                customerSearchInput.classList.add('hidden');
+                customerSearchInput.removeAttribute('required');
+                customerSearchInput.value = '';
+                customerSelectedLabel.textContent = customerLabel(customer);
+                customerSelected.classList.remove('hidden');
+                customerSelected.classList.add('flex');
+            } else {
+                customerSearchInput.classList.remove('hidden');
+                customerSearchInput.setAttribute('required', 'required');
+                customerSelected.classList.add('hidden');
+                customerSelected.classList.remove('flex');
+                customerSelectedLabel.textContent = '';
+            }
+
+            hideCustomerResults();
+        }
+
+        function renderCustomerResults(matches) {
+            customerResults.innerHTML = '';
+
+            if (!matches.length) {
+                const empty = document.createElement('li');
+                empty.className = 'px-3 py-2 text-sm text-gray-500';
+                empty.textContent = 'No matching customers';
+                customerResults.appendChild(empty);
+                customerResults.classList.remove('hidden');
+                return;
+            }
+
+            matches.forEach(function (customer) {
+                const item = document.createElement('li');
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'block w-full px-3 py-2 text-left text-sm text-gray-800 hover:bg-gray-100';
+                button.textContent = customerLabel(customer);
+                button.addEventListener('click', function () {
+                    setSelectedCustomer(customer);
+                });
+                item.appendChild(button);
+                customerResults.appendChild(item);
+            });
+
+            customerResults.classList.remove('hidden');
+        }
+
+        function searchCustomers(query) {
+            const needle = String(query || '').trim().toLowerCase();
+
+            if (!needle) {
+                hideCustomerResults();
+                return;
+            }
+
+            const matches = [];
+
+            for (let i = 0; i < customerSearchItems.length; i++) {
+                const customer = customerSearchItems[i];
+                const haystack = [
+                    customer.name,
+                    customer.customer_code,
+                    customer.mobile
+                ].filter(Boolean).join(' ').toLowerCase();
+
+                if (haystack.indexOf(needle) !== -1) {
+                    matches.push(customer);
+                }
+
+                if (matches.length >= 20) {
+                    break;
+                }
+            }
+
+            renderCustomerResults(matches);
+        }
+
+        if (customerSearchDataEl && customerIdInput && customerSearchInput && customerResults) {
+            try {
+                customerSearchItems = JSON.parse(customerSearchDataEl.textContent || '[]');
+            } catch (error) {
+                customerSearchItems = [];
+            }
+
+            const initiallySelected = customerSearchItems.find(function (customer) {
+                return String(customer.id) === String(customerIdInput.value || '');
+            });
+
+            if (initiallySelected) {
+                setSelectedCustomer(initiallySelected);
+            } else {
+                setSelectedCustomer(null);
+            }
+
+            customerSearchInput.addEventListener('input', function () {
+                customerIdInput.value = '';
+                searchCustomers(customerSearchInput.value);
+            });
+
+            customerSearchInput.addEventListener('focus', function () {
+                if (String(customerSearchInput.value || '').trim() !== '') {
+                    searchCustomers(customerSearchInput.value);
+                } else {
+                    hideCustomerResults();
+                }
+            });
+
+            if (customerClear) {
+                customerClear.addEventListener('click', function () {
+                    setSelectedCustomer(null);
+                    customerSearchInput.focus();
+                });
+            }
+
+            document.addEventListener('click', function (event) {
+                if (customerSelector && !customerSelector.contains(event.target)) {
+                    hideCustomerResults();
+                }
+            });
+
+            customerSearchInput.form.addEventListener('submit', function (event) {
+                if (!customerIdInput.value) {
+                    event.preventDefault();
+                    customerSearchInput.setCustomValidity('Please select a customer.');
+                    customerSearchInput.reportValidity();
+                }
+            });
+        }
 
 
         function getDirection() {
